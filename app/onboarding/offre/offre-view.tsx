@@ -4,8 +4,11 @@
  *
  * LA COMPOSITION reste celle du croquis de Martin : l'écran coupé par une
  * diagonale, les offres sur la partie claire, une grille de posts inclinée sur
- * la partie sombre, et les pastilles des outils remplacés en escalier sur la
- * frontière. Sous 1100 px la diagonale ne tient plus : on empile.
+ * la partie sombre. Sous 1100 px la diagonale ne tient plus : on empile.
+ *
+ * « KLIP REMPLACE TOUT ÇA » a quatre mises en scène à l'essai (voir remplace.tsx),
+ * posées sur la zone sombre en desktop et sous les cartes en mobile. Un
+ * sélecteur, visible partout sauf sur getklip.fr, passe de l'une à l'autre.
  *
  * LES PRIX SONT CEUX DE LA LANDING, au pixel près. Même carte, mêmes jetons de
  * couleur (ceux de `.v3`, pas ceux de l'app, dont le forest n'est pas le même),
@@ -29,28 +32,11 @@ import { useLocale, useTranslations } from "next-intl";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
-
-/** Mêmes outils et mêmes tarifs que la section comparaison de la landing. */
-const OUTILS = [
-  { nom: "Canva", cout: 12, domaine: "canva.com" },
-  { nom: "CapCut", cout: 15, domaine: "capcut.com" },
-  { nom: "ChatGPT", cout: 23, domaine: "chatgpt.com" },
-  { nom: "Metricool", cout: 25, domaine: "metricool.com" },
-  { nom: "WeTransfer", cout: 10, domaine: "wetransfer.com" },
-];
-const TOTAL = OUTILS.reduce((s, o) => s + o.cout, 0);
+import Remplace, { REMPLACE_CSS, VARIANTES, type Variante } from "./remplace";
 
 /* Assez de cases pour REMPLIR la grille inclinée, qui déborde de l'écran : à
    150 px sur une zone d'environ 1100 × 1400 px, il en faut une cinquantaine. */
 const NB_CASES = 56;
-
-function LogoOutil({ domaine, nom }: { domaine: string; nom: string }) {
-  const [rate, setRate] = useState(false);
-  if (rate) return <span className="pv-logo-txt">{nom.charAt(0)}</span>;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`https://www.google.com/s2/favicons?sz=128&domain=${domaine}`}
-    alt={nom} width={128} height={128} loading="lazy" onError={() => setRate(true)} />;
-}
 
 const CSS = `
   /* Jetons de la landing (.v3), redéclarés ici : ceux de globals.css ont un
@@ -93,21 +79,12 @@ const CSS = `
   .pv-case{width:100%;aspect-ratio:4/5;border-radius:6px;overflow:hidden;background:#D5D7D2;}
   .pv-case img{width:100%;height:100%;object-fit:cover;display:block;}
 
-  /* ── Les pastilles des outils, en escalier sur la diagonale ──────────── */
-  .pv-outils{position:absolute;top:50%;left:calc(64% - 34px);transform:translateY(-50%);z-index:3;
-    display:flex;flex-direction:column;gap:14px;}
-  .pv-logo{position:relative;width:62px;height:62px;border-radius:20px;background:var(--leaf);
-    display:grid;place-items:center;overflow:hidden;box-shadow:0 14px 28px -14px rgba(0,0,0,.45);}
-  .pv-logo img{width:58%;height:58%;object-fit:contain;}
-  .pv-logo-txt{font-family:var(--heavy);font-weight:900;font-size:20px;color:var(--leaf-ink);}
-  .pv-logo::after{content:"";position:absolute;left:-5px;right:-5px;top:50%;height:2px;
-    border-radius:2px;background:var(--leaf-ink);opacity:.55;transform:rotate(-38deg);}
-  .pv-logo:nth-child(2){margin-left:-8px;}
-  .pv-logo:nth-child(3){margin-left:-16px;}
-  .pv-logo:nth-child(4){margin-left:-24px;}
-  .pv-logo:nth-child(5){margin-left:-32px;}
-  .pv-total{margin:6px 0 0 -40px;padding:7px 12px;border-radius:999px;background:var(--leaf);
-    color:var(--leaf-ink);font-size:12.5px;font-weight:800;white-space:nowrap;align-self:flex-start;}
+  /* ── « Klip remplace tout ça », posé sur la zone sombre ────────────── */
+  /* Centré verticalement, calé à droite : à mi-hauteur la diagonale passe à
+     65 % de la largeur, le bloc commence toujours après. */
+  .pv-remplace-large{position:absolute;top:50%;right:clamp(28px,3.2vw,64px);translate:0 -50%;z-index:3;
+    width:min(380px,29vw);}
+  .pv-remplace-mobile{display:none;}
 
   /* ── La partie claire ────────────────────────────────────────────────── */
   .pv-marque{position:absolute;top:28px;left:clamp(24px,4vw,56px);z-index:4;line-height:0;}
@@ -203,11 +180,9 @@ const CSS = `
     .pv-sombre{position:relative;inset:auto;height:30vh;min-height:210px;max-height:300px;
       clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);}
     .pv-mur{top:-40%;left:-20%;width:140%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
-    .pv-outils{position:relative;top:auto;left:auto;transform:none;z-index:3;
-      margin:-30px auto 0;padding:0 20px;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;}
-    .pv-logo:nth-child(n){margin-left:0;}
-    .pv-logo{width:46px;height:46px;border-radius:15px;}
-    .pv-total{margin:0;flex-basis:100%;text-align:center;background:none;color:var(--ink-3);padding:4px 0 0;}
+    .pv-remplace-large{display:none;}
+    .pv-remplace-mobile{display:block;width:100%;max-width:420px;margin:48px auto 24px;text-align:left;}
+    .pv.a-choix .pv-clair{padding-bottom:104px;}
     .pv-marque{top:18px;left:20px;}
     .pv-marque img{box-shadow:0 4px 14px rgba(0,0,0,.35);}
     .pv-clair{width:100%;max-width:none;min-height:0;align-items:center;text-align:center;
@@ -246,12 +221,20 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const [periode, setPeriode] = useState<"monthly" | "yearly">("yearly");
   const [nom, setNom] = useState("");
   const [visuels, setVisuels] = useState<string[]>([]);
+  const [variante, setVariante] = useState<Variante>("calques");
+  /* Le sélecteur sert à départager les variantes : il n'a rien à faire devant
+     un vrai visiteur. Décidé après montage, `location` n'existant pas au rendu
+     serveur. */
+  const [apercu, setApercu] = useState(false);
 
   // Même règle que la landing : sans compte connu, l'offre reste ouverte.
   const lancement = launchApplies(periode) && (seatsLeft === null || seatsLeft > 0);
   const annuel = periode === "yearly";
 
   useEffect(() => {
+    setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
+    const v = new URLSearchParams(location.search).get("v");
+    if (VARIANTES.some(x => x.cle === v)) setVariante(v as Variante);
     setNom(lireDraft()?.name ?? "");
     // Les visuels déposés par Martin prennent la place des cases grises.
     fetch("/api/vitrine")
@@ -277,13 +260,26 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     return annuel ? tp("billedYear", { total: fmt(o.annuel * 12) }) : tp("billedMonth");
   }
 
+  function choisir(v: Variante) {
+    setVariante(v);
+    // Dans l'adresse, pour pouvoir envoyer une variante précise en lien.
+    const url = new URL(location.href);
+    url.searchParams.set("v", v);
+    history.replaceState(null, "", url);
+  }
+
+  /* Le prix Studio TEL QUE LA CARTE L'AFFICHE, période et remise comprises :
+     c'est lui qu'on oppose à la pile d'outils. */
+  const studioAffiche = annuel ? PLANS.solo.priceYearly : PLANS.solo.priceMonthly;
+  const prixStudio = lancement ? launchPrice(studioAffiche) : studioAffiche;
+
   const cases = visuels.length
     ? Array.from({ length: NB_CASES }, (_, i) => visuels[(i * 3 + Math.floor(i / 7)) % visuels.length])
     : Array<string>(NB_CASES).fill("");
 
   return (
-    <div className="pv">
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+    <div className={"pv" + (apercu ? " a-choix" : "")}>
+      <style dangerouslySetInnerHTML={{ __html: CSS + REMPLACE_CSS }} />
 
       <div className="pv-sombre" aria-hidden="true">
         <div className="pv-mur">
@@ -296,13 +292,8 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
         </div>
       </div>
 
-      <div className="pv-outils">
-        {OUTILS.map(o => (
-          <span className="pv-logo" key={o.nom} title={o.nom}>
-            <LogoOutil domaine={o.domaine} nom={o.nom} />
-          </span>
-        ))}
-        <span className="pv-total">~{TOTAL} €/mois remplacés</span>
+      <div className="pv-remplace-large">
+        <Remplace variante={variante} prix={prixStudio} fmt={fmt} />
       </div>
 
       <Link href="/" className="pv-marque"><img src="/icon-192.png" alt="Klip" /></Link>
@@ -365,10 +356,25 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
           })}
         </div>
 
+        <div className="pv-remplace-mobile">
+          <Remplace variante={variante} prix={prixStudio} fmt={fmt} />
+        </div>
+
         <p className="pv-rassure">
           <b>0 € aujourd&apos;hui.</b> Premier prélèvement dans {TRIAL_DAYS} jours, annulable en un clic.
         </p>
       </div>
+
+      {apercu && (
+        <div className="rt-choix" role="group" aria-label="Variante">
+          <span className="rt-choix-lib">Variante</span>
+          {VARIANTES.map(x => (
+            <button key={x.cle} type="button" className={variante === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
+              {x.nom}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
