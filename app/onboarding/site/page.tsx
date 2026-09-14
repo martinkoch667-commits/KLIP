@@ -127,7 +127,8 @@ export default function SitePage() {
   );
 
   return (
-    <OnboardingShell largeur={520} bas={phase === "ask" ? zoneBasse : null}>
+    <OnboardingShell largeur={520} etape={{ chemin: "votre-site", libelle: "Étape 2 sur 4", progression: 0.5 }}
+      bas={phase === "ask" ? zoneBasse : null}>
       {phase === "ask" ? (
         <>
           {/* Pas de retour à la ligne forcé : le titre se coupe tout seul selon

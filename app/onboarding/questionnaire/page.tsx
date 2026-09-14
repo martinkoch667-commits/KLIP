@@ -98,7 +98,8 @@ export default function QuestionnairePage() {
   );
 
   return (
-    <OnboardingShell bas={zoneBasse}>
+    <OnboardingShell bas={zoneBasse}
+      etape={{ chemin: "questions", libelle: `Question ${i + 1} sur ${TITRES.length}`, progression: 0.5 + 0.25 * (i + 1) / TITRES.length }}>
       <h1 className="ob-h1">{TITRES[i].titre}</h1>
       <p className="ob-sub">{TITRES[i].sub}</p>
 

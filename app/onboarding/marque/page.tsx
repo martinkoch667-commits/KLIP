@@ -278,7 +278,7 @@ export default function CharePage() {
   const langue = LANGUES.find(l => l.code === ch.langue) ?? LANGUES[0];
 
   return (
-    <OnboardingShell largeur={620} bas={
+    <OnboardingShell largeur={620} etape={{ chemin: "charte", libelle: "Étape 4 sur 4", progression: 1 }} bas={
       <button className="ob-btn ob-btn-leaf" onClick={() => router.push("/onboarding/offre")}>
         Générer mes visuels
       </button>

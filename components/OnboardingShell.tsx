@@ -26,7 +26,26 @@
  * l'action collée en bas, sous le pouce.
  */
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+
+/* ── La case ─────────────────────────────────────────────────────────────────
+   Martin veut chaque écran du parcours DANS une case, sur la base de la carte
+   « Curseurs » de la page d'offre, parfois plus sobre pour ne pas gêner la
+   lecture. Quatre idées à départager (2026-09-14), de la plus expressive à la
+   plus sobre ; un sélecteur, absent de getklip.fr, passe de l'une à l'autre et
+   le choix suit la personne d'écran en écran. */
+export type CaseStyle = "fenetre" | "sobre" | "halo" | "panneau";
+export const CASES: { cle: CaseStyle; nom: string }[] = [
+  { cle: "fenetre", nom: "Fenêtre" },
+  { cle: "sobre", nom: "Sobre" },
+  { cle: "halo", nom: "Halo" },
+  { cle: "panneau", nom: "Panneau" },
+];
+const CLE_CASE = "klip_onb_case";
+
+/** Où l'on en est : l'adresse de la fenêtre, le libellé du panneau, la barre. */
+export type Etape = { chemin: string; libelle: string; progression: number };
 
 /** Le mot clé d'un titre, sélectionné comme un calque dans l'éditeur. */
 export function MotChoisi({ children }: { children: React.ReactNode }) {
@@ -234,6 +253,85 @@ export const ONB_CSS = `
      du navigateur. focus-visible ne se déclenche pas au clic. */
   .ob *:focus-visible{outline:2px solid var(--vio);outline-offset:3px;}
 
+  /* ══ LA CASE ═══════════════════════════════════════════════════════════
+     Pas de transform, de filter ni de mask sur la case ou ses parents : ils
+     font d'un élément le repère des enfants en position fixe, et les modales
+     (connexion, charte) se retrouveraient enfermées dans la case. */
+  .ob-corps.a-case{max-width:calc(var(--ob-w,440px) + 56px);}
+  .ob-case{position:relative;width:100%;border-radius:28px;overflow:hidden;background:#fff;text-align:center;
+    box-shadow:0 0 0 1px rgba(16,19,11,.06),0 40px 80px -40px rgba(7,33,23,.45);}
+  .ob-case-cadre{position:relative;}
+  .ob-case-fenetre{position:relative;overflow:hidden;background:#fff;}
+  .ob-case-barre,.ob-case-entete{display:none;}
+  .ob-case-contenu{position:relative;padding:28px 24px 30px;}
+  .ob-case .ob-h1{font-size:clamp(30px,8.6vw,40px);}
+  .ob-case .ob-sub{margin-bottom:clamp(18px,3vh,26px);}
+
+  /* La barre de navigateur, commune aux deux fenêtres. */
+  .ob-case-barre{align-items:center;gap:6px;height:34px;padding:0 14px;background:#F6F7F8;
+    border-bottom:1px solid rgba(16,19,11,.06);}
+  .ob-case-barre i{width:10px;height:10px;border-radius:50%;flex:none;}
+  .ob-case-url{margin-left:auto;margin-right:12px;display:inline-flex;align-items:center;gap:5px;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;color:#7B7F75;white-space:nowrap;}
+  .ob-case-url svg{width:11px;height:11px;fill:currentColor;}
+
+  /* 1. FENÊTRE : la carte Curseurs. Halo vert en L, fenêtre décalée et coupée
+     par les bords droit et bas, liseré de verre en haut et à gauche. */
+  .ob-case.is-fenetre::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,0) 26%,#fff 70%),
+      radial-gradient(70% 42% at 55% -6%,#072117 0%,#13603F 40%,transparent 72%),
+      linear-gradient(90deg,#2FBF84 0%,#8BE3B5 8%,transparent 20%),
+      linear-gradient(180deg,#3DC98E 0%,#C9F3DC 26%,transparent 50%);}
+  .ob-case.is-fenetre .ob-case-cadre{margin:34px 0 0 24px;padding:8px 0 0 8px;border-radius:22px 0 0 0;
+    background:rgba(255,255,255,.34);box-shadow:inset 1px 1px 0 rgba(255,255,255,.5);}
+  .ob-case.is-fenetre .ob-case-fenetre{border-radius:14px 0 0 0;box-shadow:0 0 30px -12px rgba(7,33,23,.25);}
+  .ob-case.is-fenetre .ob-case-barre{display:flex;}
+  /* La fenêtre est décalée de 32 px à gauche et coupée à droite : le contenu
+     en reprend une partie à droite pour rester à peu près centré dans la CASE.
+     Jamais moins de 14 px à gauche : les poignées d'un bloc sélectionné
+     débordent de 11 px et la fenêtre les rognerait. */
+  .ob-case.is-fenetre .ob-case-contenu{padding:26px 34px 30px 14px;}
+  .ob-case.is-fenetre .ob-case-vous{display:flex;}
+
+  /* 2. SOBRE : la même fenêtre, sans halo ni décalage. Blanche et centrée, le
+     seul rappel de marque est le liseré vert sous la barre. */
+  .ob-case.is-sobre .ob-case-barre{display:flex;background:#fff;box-shadow:inset 0 -2px 0 rgba(189,242,160,.9);border-bottom:none;}
+
+  /* 3. HALO : pas de barre, une lueur verte au coin haut gauche et une autre,
+     plus tendre, en haut à droite. Le contenu reste sur du blanc. */
+  .ob-case.is-halo::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(55% 30% at 0% 0%,rgba(31,168,120,.42),transparent 72%),
+      radial-gradient(45% 24% at 100% 0%,rgba(189,242,160,.55),transparent 70%);}
+  .ob-case.is-halo .ob-case-contenu{padding-top:34px;}
+
+  /* 4. PANNEAU : un panneau de l'éditeur. En-tête gris clair avec l'étape et la
+     progression, rien d'autre. Le plus sobre des quatre. */
+  .ob-case.is-panneau{border-radius:22px;}
+  .ob-case.is-panneau .ob-case-entete{display:flex;align-items:center;gap:12px;padding:12px 18px;background:#F7F8F9;
+    border-bottom:1px solid rgba(16,19,11,.06);}
+  .ob-case-etape{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:12.5px;font-weight:800;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;}
+  .ob-case-etape svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linejoin:round;}
+  .ob-case-piste{flex:1;height:6px;border-radius:999px;background:#E9EBEE;overflow:hidden;}
+  .ob-case-piste span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1FA878,#BDF2A0);}
+
+  /* Le curseur « Vous » de la fenêtre, posé sur le liseré de verre. */
+  .ob-case-vous{display:none;position:absolute;left:6px;top:14px;z-index:3;}
+  .ob-case-vous .ob-curseur{position:static;}
+
+  /* Sélecteur de case (aperçu seulement). */
+  .ob.a-choix{padding-bottom:84px;}
+  .ob-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
+    display:flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:#10130B;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.5);max-width:calc(100vw - 24px);}
+  .ob-choix-lib{padding:0 8px 0 10px;font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;color:rgba(255,255,255,.5);}
+  .ob-choix button{border:none;background:none;cursor:pointer;padding:8px 12px;border-radius:999px;font-family:var(--sans);
+    font-weight:800;font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;}
+  .ob-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
+
   @media (prefers-reduced-motion: reduce){ .ob-curseur{animation:none;} }
 
   /* ── Tablette et plus : la colonne respire, rien ne change de nature. ── */
@@ -264,25 +362,87 @@ export const ONB_CSS = `
     .ob-pied{flex-direction:column-reverse;gap:6px;}
     .ob-pied .ob-suite{order:0;width:100%;}
     .ob-pied .ob-retour{order:1;}
+
+    .ob-case{border-radius:24px;}
+    .ob-case-contenu{padding:24px 18px 26px;}
+    .ob-case.is-fenetre .ob-case-cadre{margin:28px 0 0 16px;padding:6px 0 0 6px;}
+    .ob-case.is-fenetre .ob-case-contenu{padding:22px 22px 26px 12px;}
+    .ob-choix-lib{display:none;}
+    .ob-choix button{padding:8px 10px;font-size:12.5px;}
   }
 `;
 
 export default function OnboardingShell({
-  children, largeur, bas,
+  children, largeur, bas, etape,
 }: {
   children: React.ReactNode;
   largeur?: number;
   /** Zone d'action. Sur mobile elle se DÉTACHE du contenu et se colle en bas de
    *  l'écran, sous le pouce ; sur grand écran elle suit le contenu. */
   bas?: React.ReactNode;
+  /** L'écran dans le parcours : adresse de la fenêtre, libellé du panneau. */
+  etape?: Etape;
 }) {
+  const [caseStyle, setCaseStyle] = useState<CaseStyle>("fenetre");
+  /* Décidé après montage : `location` et `sessionStorage` n'existent pas au
+     rendu serveur. */
+  const [apercu, setApercu] = useState(false);
+
+  useEffect(() => {
+    setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
+    const dansAdresse = new URLSearchParams(location.search).get("case");
+    let garde: string | null = null;
+    try { garde = sessionStorage.getItem(CLE_CASE); } catch { /* navigation privée */ }
+    const choix = [dansAdresse, garde].find(c => CASES.some(x => x.cle === c));
+    if (choix) setCaseStyle(choix as CaseStyle);
+  }, []);
+
+  function choisir(c: CaseStyle) {
+    setCaseStyle(c);
+    try { sessionStorage.setItem(CLE_CASE, c); } catch { /* navigation privée */ }
+  }
+
   return (
-    <div className={"ob" + (bas ? " ob-adeux" : "")}
+    <div className={"ob" + (bas ? " ob-adeux" : "") + (apercu ? " a-choix" : "")}
       style={largeur ? ({ ["--ob-w" as string]: `${largeur}px` }) : undefined}>
       <style dangerouslySetInnerHTML={{ __html: ONB_CSS }} />
       <Link href="/" className="ob-marque"><img src="/icon-192.png" alt="Klip" /></Link>
-      <div className="ob-corps">{children}</div>
+      <div className="ob-corps a-case">
+        <div className={`ob-case is-${caseStyle}`}>
+          <span className="ob-case-vous"><CurseurNomme nom="Vous" teinte="vert" /></span>
+          <div className="ob-case-entete">
+            <span className="ob-case-etape">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5Z" /><path d="M3 13l9 5 9-5" /></svg>
+              {etape?.libelle ?? "Klip"}
+            </span>
+            <span className="ob-case-piste"><span style={{ width: `${Math.round((etape?.progression ?? 0) * 100)}%` }} /></span>
+          </div>
+          <div className="ob-case-cadre">
+            <div className="ob-case-fenetre">
+              <div className="ob-case-barre" aria-hidden="true">
+                <i style={{ background: "#EE6A5F" }} /><i style={{ background: "#F5BD4F" }} /><i style={{ background: "#61C454" }} />
+                <span className="ob-case-url">
+                  <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="2.4" /></svg>
+                  getklip.fr{etape ? `/${etape.chemin}` : ""}
+                </span>
+              </div>
+              <div className="ob-case-contenu">{children}</div>
+            </div>
+          </div>
+        </div>
+      </div>
       {bas && <div className="ob-bas">{bas}</div>}
+
+      {apercu && (
+        <div className="ob-choix" role="group" aria-label="Style de la case">
+          <span className="ob-choix-lib">Case</span>
+          {CASES.map(x => (
+            <button key={x.cle} type="button" className={caseStyle === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
+              {x.nom}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
