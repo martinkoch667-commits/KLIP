@@ -416,11 +416,12 @@ export default function OffreView({ seatsLeft, offresPayables }: {
       .catch(() => { /* les cases restent vides */ });
   }, []);
 
-  const offres: Offre[] = [
+  const toutes: Offre[] = [
     { cle: "starter", nom: PLANS.starter.label, mensuel: PLANS.starter.priceMonthly, annuel: PLANS.starter.priceYearly, tag: tp("starterTag"), clients: tp("starterClients"), pop: false },
     { cle: "studio", nom: PLANS.solo.label, mensuel: PLANS.solo.priceMonthly, annuel: PLANS.solo.priceYearly, tag: tp("studioTag"), clients: tp("studioClients"), pop: true },
     { cle: "agence", nom: PLANS.agency.label, mensuel: PLANS.agency.priceMonthly, annuel: PLANS.agency.priceYearly, tag: tp("agencyTag"), clients: tp("agencyClients"), pop: false },
-  ].filter(o => offresPayables.includes(o.cle));
+  ];
+  const offres = toutes.filter(o => offresPayables.includes(o.cle));
 
   /* Mêmes phrases que sous les prix de la landing. L'annuel se règle en une
      fois : on annonce la somme réellement débitée, puis le tarif ensuite. */
