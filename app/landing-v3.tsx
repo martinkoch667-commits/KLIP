@@ -837,8 +837,15 @@ function HeroPreview() {
 
 /* ─── Comparison — la stack devient un panneau Calques ───────────────────── */
 /* Lu dans la grille, jamais recopié : c'est l'offre Studio qu'on compare
-   à la pile d'outils. */
-const KLIP_PRICE = PLANS.solo.priceMonthly;
+   à la pile d'outils. « À partir de » = son prix le plus bas, celui que la
+   grille affiche d'entrée : l'annuel, remise de lancement comprise tant qu'il
+   reste des places. Avant, le bloc annonçait 39 € (le mensuel plein tarif)
+   pendant que la grille, juste en dessous, montrait 22,75 €. */
+function klipPrice(seatsLeft: number | null) {
+  const base = PLANS.solo.priceYearly;
+  const remise = launchApplies('yearly') && (seatsLeft === null || seatsLeft > 0);
+  return { prix: remise ? launchPrice(base) : base, barre: remise ? base : null };
+}
 const STACK_TOOLS = [
   { name: 'Canva', cost: 12, domain: 'canva.com', color: '00C4CC' },
   { name: 'CapCut', cost: 15, domain: 'capcut.com', color: '000000' },
@@ -856,8 +863,11 @@ function ToolLogo({ domain, color, name, size = 24 }: { domain: string; color: s
   return <img src={`https://www.google.com/s2/favicons?sz=128&domain=${domain}`} alt={name} width={size} height={size} loading="lazy" onError={() => setErr(true)} style={{ width: size, height: size, objectFit: 'contain' }} />;
 }
 
-function Comparison({ prelaunch = false }: { prelaunch?: boolean }) {
+function Comparison({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
   const t = useTranslations('landing.comparison');
+  const locale = useLocale();
+  const { prix: klipPrix, barre: klipBarre } = klipPrice(seatsLeft);
+  const KLIP_PRICE = formatPrice(klipPrix, locale);
   const useLabels: Record<string, string> = { Canva: t('useCanva'), CapCut: t('useCapcut'), ChatGPT: t('useChatgpt'), Metricool: t('useMetricool'), Notion: t('useNotion'), WeTransfer: t('useWetransfer') };
   const panelRef = useRef<HTMLDivElement>(null);
   const [offCount, setOffCount] = useState(0);
@@ -889,10 +899,11 @@ function Comparison({ prelaunch = false }: { prelaunch?: boolean }) {
             <p className="rv d2" style={{ marginTop: 18, fontSize: 15, color: 'var(--ink-2)' }}>{t('today', { total: STACK_TOTAL })}</p>
             <div className="rv d3" style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 26, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                {klipBarre !== null && <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 'clamp(18px, 2vw, 24px)', color: 'var(--ink-3)', textDecoration: 'line-through' }}>{formatPrice(klipBarre, locale)}€</span>}
                 <span className="t-oaksx" style={{ fontSize: 'clamp(52px, 6vw, 84px)', color: 'var(--ink)' }}>{KLIP_PRICE}€</span>
                 <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink-3)' }}>{t('perMonth')}</span>
               </div>
-              <span className="stk-card stk-leaf rv-slap in" style={{ ['--r' as string]: '-3deg', rotate: '-3deg', fontSize: 12.5 }}>{t('withKlip')} — {t('allInOne')}</span>
+              <span className="stk-card stk-leaf rv-slap in" style={{ ['--r' as string]: '-3deg', rotate: '-3deg', fontSize: 12.5 }}>{t('withKlip')} · {t('allInOne')}</span>
             </div>
             <p className="rv d3" style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 8 }}>{t('insteadOf', { total: STACK_TOTAL })}</p>
             <div className="rv d4" style={{ marginTop: 24 }}>
@@ -1829,7 +1840,7 @@ export default function LandingV3({ prelaunch = false, seatsLeft = null, starter
       <Nav prelaunch={prelaunch} />
       <Hero prelaunch={prelaunch} />
       <MarqueeBand />
-      <Comparison prelaunch={prelaunch} />
+      <Comparison prelaunch={prelaunch} seatsLeft={seatsLeft} />
       <HeroPreview />
       <Probleme />
       <Steps />
