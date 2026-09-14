@@ -557,7 +557,12 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
   const name = meta(html, 'og:site_name', 'application-name')
     ?? (title ? decodeEntities(title).split(/[|–—·-]/)[0].trim() : undefined);
 
-  const logoCandidates = findLogoCandidates(html, css, url);
+  /* Les logos de SERVICES TIERS ne sont pas la marque : un restaurant affiche
+     Uber Eats et Deliveroo, un site met ses icônes de réseaux sociaux en SVG.
+     Pris pour des logos, ils mettaient le vert d'Uber Eats dans la palette
+     (Pepe Chicken, 14/09/2026). */
+  const TIERS = /uber-?eats|deliveroo|just-?eat|glovo|google|apple|app-?store|play-?store|facebook|instagram|tiktok|linkedin|twitter|youtube|pinterest|whatsapp|tripadvisor|trustpilot|paypal|visa|mastercard|stripe|brand-x|icon-tabler|social/i;
+  const logoCandidates = findLogoCandidates(html, css, url).filter(c => !TIERS.test(c));
 
   return {
     url: url.toString(),
