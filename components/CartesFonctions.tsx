@@ -241,23 +241,23 @@ export default function CartesFonctions() {
           <SceneEditeur />
         </Carte>
         <Carte chemin="montage" titre={t("f5t")} texte={t("f5d")}
-          curseurs={<Curseur nom="Couper" teinte="ambre" style={{ left: "58%", top: "30cqw", ["--d" as string]: "-1s" }} />}>
+          curseurs={<Curseur nom="Couper" teinte="ambre" style={{ left: "70%", top: "50cqw", ["--d" as string]: "-1s" }} />}>
           <SceneMontage />
         </Carte>
         <Carte chemin="voix" titre={t("f1t")} texte={t("f1d")}
-          curseurs={<Curseur nom="Vous" teinte="vert" style={{ left: "46%", top: "36cqw", ["--d" as string]: "-2s" }} />}>
+          curseurs={<Curseur nom="Vous" teinte="vert" style={{ left: "72%", top: "46cqw", ["--d" as string]: "-2s" }} />}>
           <SceneVoix />
         </Carte>
         <Carte chemin="legendes" titre={t("f2t")} texte={t("f2d")}
-          curseurs={<Curseur nom="IA" teinte="violet" style={{ left: "72%", top: "52cqw", ["--d" as string]: "-.6s" }} />}>
+          curseurs={<Curseur nom="IA" teinte="violet" style={{ left: "80%", top: "43cqw", ["--d" as string]: "-.6s" }} />}>
           <SceneLegende />
         </Carte>
         <Carte chemin="clients" titre={t("f3t")} texte={t("f3d")}
-          curseurs={<Curseur nom="Vous" teinte="ambre" fleche="haut-droite" style={{ left: "62%", top: "30cqw", ["--d" as string]: "-1.6s" }} />}>
+          curseurs={<Curseur nom="Vous" teinte="ambre" fleche="haut-droite" style={{ left: "88%", top: "44cqw", ["--d" as string]: "-1.6s" }} />}>
           <SceneClients />
         </Carte>
         <Carte chemin="planning" titre={t("f4t")} texte={t("f4d")}
-          curseurs={<Curseur nom="Vous" teinte="vert" style={{ left: "50%", top: "44cqw", ["--d" as string]: "-2.4s" }} />}>
+          curseurs={<Curseur nom="Vous" teinte="vert" style={{ left: "64%", top: "30cqw", ["--d" as string]: "-2.4s" }} />}>
           <ScenePublication />
         </Carte>
       </div>
