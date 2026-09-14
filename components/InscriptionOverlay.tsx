@@ -4,9 +4,10 @@
  *
  * Martin ne veut plus que l'inscription ouvre une nouvelle page (2026-09-14) :
  * elle s'ouvre PAR-DESSUS la page d'accueil. La carte reprend la carte
- * « Curseurs » dans sa version violette (demande explicite, malgré le vert de
- * base de Klip) : la scène en haut, sans la phrase de prix, et le formulaire
- * actuel dessous, e-mail, mot de passe, Google.
+ * « Curseurs » : la scène en violet (demande explicite, malgré le vert de base
+ * de Klip), sans la phrase de prix, et le formulaire actuel à côté, e-mail,
+ * mot de passe, Google, qui garde le vert pour rester cohérent avec le site.
+ * En haut sur mobile, à gauche sur ordinateur.
  *
  * Même logique que /register et /login, qui restent en place pour les liens
  * directs : inscription avec lien de confirmation, connexion par mot de passe,
@@ -44,49 +45,59 @@ function GoogleIcon() {
 }
 
 const IO_CSS = `
+  /* Derrière la carte, la landing reste lisible : un flou seul, sans voile
+     sombre ni teinte (demande de Martin). */
   .io-fond{position:fixed;inset:0;z-index:2000;overflow-y:auto;overscroll-behavior:contain;
-    display:grid;place-items:center;padding:24px 16px;
-    background:rgba(22,16,58,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    display:grid;padding:24px 16px;background:transparent;
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
     animation:io-fond .2s ease-out;}
-  .io-carte{width:100%;max-width:430px;margin:auto;text-align:left;
+  /* margin:auto centre la carte et la garde entière quand elle dépasse. */
+  .io-carte{width:100%;max-width:400px;margin:auto;text-align:left;
     --ink:#10130B;--ink-2:#50544A;--ink-3:#8A8D7D;--vio:#6656D9;--card:#fff;--line-2:rgba(16,19,11,.08);
+    --forest:#072117;--forest-3:#124732;--leaf:#BDF2A0;--leaf-ink:#1E3317;--mint:#2FD79B;--mint-2:#1FA878;
     --heavy:'Archivo',system-ui,sans-serif;--sans:'early-sans-variable','Hanken Grotesk',system-ui,sans-serif;
     font-family:var(--sans);color:var(--ink);font-size:16px;line-height:1.5;
-    box-shadow:0 0 0 1px rgba(255,255,255,.08),0 50px 100px -30px rgba(10,6,40,.7);
+    box-shadow:0 0 0 1px rgba(16,19,11,.07),0 44px 90px -34px rgba(0,0,0,.5);
     animation:io-monte .3s cubic-bezier(.16,1,.3,1);}
   @keyframes io-fond{from{opacity:0}to{opacity:1}}
   @keyframes io-monte{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
 
-  /* Préfixés par .io-fond : la landing remet à zéro « .v3 button » (fond
-     transparent), plus spécifique qu'une classe seule. */
+  /* La scène garde son propre repère : ses cqw suivent sa largeur, qu'elle
+     soit en haut de la carte (mobile) ou dans la colonne gauche (ordinateur). */
+  .io-visuel{position:relative;container-type:inline-size;}
+
+  /* Préfixés par .io-fond : la landing remet à zéro « .v3 button » et « .v3 a »,
+     plus spécifiques qu'une classe seule. */
   .io-fond .io-fermer{position:absolute;top:9px;right:10px;z-index:6;width:30px;height:30px;border-radius:50%;
     display:grid;place-items:center;cursor:pointer;color:#fff;background:rgba(20,12,70,.32);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);}
   .io-fond .io-fermer:hover{background:rgba(20,12,70,.48);}
 
-  .io-corps{position:relative;padding:0 26px 26px;margin-top:-2cqw;}
-  .io-h{margin:0;font-family:var(--heavy);font-weight:800;font-size:26px;letter-spacing:-.035em;line-height:1.1;
+  /* Sous la scène violette, tout reprend le vert de Klip, comme la landing. */
+  .io-corps{position:relative;padding:0 24px 24px;margin-top:-2cqw;}
+  .io-h{margin:0;font-family:var(--heavy);font-weight:800;font-size:25px;letter-spacing:-.035em;line-height:1.1;
     color:#1D2019;text-align:center;}
   .io-p{margin:8px 0 18px;font-size:14.5px;color:var(--ink-3);text-align:center;}
-  .io-fond .io-lien{border:none;background:none;padding:0;font:inherit;font-weight:800;color:var(--vio);cursor:pointer;
-    text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;}
+  .io-fond .io-lien{border:none;background:none;padding:0;font:inherit;font-weight:800;color:var(--forest-3);cursor:pointer;
+    text-decoration:underline;text-decoration-color:var(--mint-2);text-underline-offset:3px;text-decoration-thickness:2px;}
+  .io-fond .io-lien:hover{color:var(--mint-2);}
 
   .io-form{display:flex;flex-direction:column;}
   .io-lab{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;}
-  .io-in{width:100%;min-height:50px;padding:0 15px;margin-bottom:14px;border:none;border-radius:14px;outline:none;
+  /* 16 px minimum dans les champs : en dessous, l'iPhone zoome à la saisie. */
+  .io-fond .io-in{width:100%;min-height:50px;padding:0 15px;margin-bottom:14px;border:none;border-radius:14px;outline:none;
     background:#F4F5F7;color:var(--ink);font:inherit;font-size:16px;font-weight:600;
     box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.06);transition:box-shadow .15s,background .15s;}
   .io-in::placeholder{color:#A3A69B;font-weight:500;}
-  /* En saisie, le champ prend le violet de la sélection. */
-  .io-in:focus{background:#fff;box-shadow:inset 0 0 0 2px var(--vio),0 0 0 4px rgba(102,86,217,.14);}
+  .io-fond .io-in:focus{background:#fff;box-shadow:inset 0 0 0 2px var(--mint-2),0 0 0 4px rgba(47,215,155,.18);}
   .io-fond .io-oubli{align-self:flex-end;margin:-6px 0 14px;font-size:12.5px;font-weight:700;color:var(--ink-3);text-decoration:none;}
-  .io-fond .io-oubli:hover{color:var(--vio);}
+  .io-fond .io-oubli:hover{color:var(--forest-3);}
   .io-erreur{margin:0 0 12px;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.4;background:#FDECEA;color:#A8321F;}
 
   .io-fond .io-btn{min-height:52px;border:none;border-radius:999px;cursor:pointer;font:inherit;font-weight:800;font-size:15.5px;
-    color:#fff;background:linear-gradient(180deg,#7869E6 0%,#5A4AD1 100%);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 16px 30px -16px rgba(90,74,209,.75);transition:filter .15s,transform .12s;}
-  .io-fond .io-btn:hover:not(:disabled){filter:brightness(1.06);}
+    color:var(--leaf-ink);background:var(--leaf);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 16px 32px -16px rgba(120,190,90,.6);transition:background .15s,transform .12s;}
+  .io-fond .io-btn:hover:not(:disabled){background:#C9F5B2;}
   .io-fond .io-btn:active{transform:scale(.985);}
   .io-fond .io-btn:disabled{opacity:.6;cursor:not-allowed;}
 
@@ -95,30 +106,64 @@ const IO_CSS = `
   .io-fond .io-google{width:100%;min-height:50px;border:none;border-radius:999px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:10px;font:inherit;font-weight:700;font-size:15px;color:var(--ink);
     background:#fff;box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.12);}
-  .io-fond .io-google:hover:not(:disabled){box-shadow:inset 0 0 0 2px var(--vio);}
+  .io-fond .io-google:hover:not(:disabled){box-shadow:inset 0 0 0 2px var(--mint-2);}
   .io-fond .io-google:disabled{opacity:.6;cursor:not-allowed;}
 
   .io-envoye{text-align:center;padding:4px 0 6px;}
   .io-envoye-ic{width:52px;height:52px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;
-    background:#E6E1FF;color:#4B3BC4;box-shadow:inset 0 0 0 1.5px #B9AEFF;}
+    background:var(--leaf);color:var(--leaf-ink);}
   .io-envoye .io-p{margin-bottom:0;}
   .io-envoye b{color:var(--ink);}
 
-  /* Ordinateur à écran bas (1440×750) : sans ce resserrage, le bouton Google
-     sortait de l'écran. */
-  @media(min-width:481px) and (max-height:820px){
+  /* Tablette et petit ordinateur à écran bas : la carte verticale se resserre. */
+  @media(min-width:481px) and (max-width:859px) and (max-height:820px){
     .io-fond{padding:14px 16px;}
-    .io-carte{max-width:400px;}
     .io-p{margin-bottom:14px;}
     .io-fond .io-in{min-height:46px;margin-bottom:12px;}
     .io-fond .io-btn{min-height:48px;}
     .io-fond .io-google{min-height:46px;}
     .io-ou{margin:12px 0;}
   }
+
+  /* Ordinateur : la carte passe en largeur. La scène violette occupe un
+     panneau à gauche, le formulaire est à droite. */
+  @media(min-width:860px){
+    .io-fond{padding:24px 32px;}
+    .io-carte{max-width:900px;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);
+      padding:10px;border-radius:30px;}
+    .io-visuel{display:flex;flex-direction:column;justify-content:center;overflow:hidden;border-radius:22px;background:#F6F4FF;}
+    /* Le halo couvre tout le panneau et non plus la seule scène. */
+    .io-visuel .fx-halo{display:none;}
+    .io-visuel::before{content:"";position:absolute;inset:0;pointer-events:none;
+      background:
+        radial-gradient(75% 45% at 55% -6%,#2F22A8 0%,#5646D6 38%,transparent 72%),
+        linear-gradient(90deg,#8C7DFF 0%,#B7ADFF 12%,transparent 28%),
+        linear-gradient(180deg,#9D90FF 0%,#D9D3FF 38%,transparent 72%);
+      -webkit-mask-image:linear-gradient(to bottom,#000 40%,transparent 100%);mask-image:linear-gradient(to bottom,#000 40%,transparent 100%);}
+    .io-visuel .fx-tete{margin-top:-4cqw;}
+    .io-corps{margin:0;padding:40px 38px 32px 42px;display:flex;flex-direction:column;justify-content:center;}
+    .io-h{font-size:30px;text-align:left;}
+    .io-p{text-align:left;margin:8px 0 24px;}
+    .io-envoye .io-h,.io-envoye .io-p{text-align:center;}
+    .io-fond .io-fermer{top:18px;right:18px;color:var(--ink-2);background:#F3F4F6;box-shadow:none;}
+    .io-fond .io-fermer:hover{background:#E8EAEE;}
+  }
+
+  /* Mobile : une carte plus petite, pour que la page respire autour. */
   @media(max-width:480px){
-    .io-fond{padding:12px 10px;place-items:start center;}
-    .io-corps{padding:0 18px 20px;}
-    .io-h{font-size:23px;}
+    .io-fond{padding:20px 24px;}
+    .io-carte{max-width:344px;border-radius:24px;}
+    .io-carte .fx-scene{height:50cqw;}
+    .io-corps{padding:0 18px 18px;}
+    .io-h{font-size:21px;}
+    .io-p{font-size:13.5px;margin:6px 0 14px;}
+    .io-lab{font-size:11px;margin-bottom:5px;}
+    .io-fond .io-in{min-height:44px;margin-bottom:11px;border-radius:12px;}
+    .io-fond .io-oubli{margin:-3px 0 12px;font-size:12px;}
+    .io-fond .io-btn{min-height:46px;font-size:15px;}
+    .io-ou{margin:12px 0;}
+    .io-fond .io-google{min-height:44px;font-size:14.5px;}
+    .io-fond .io-fermer{top:8px;right:8px;width:28px;height:28px;}
   }
   @media (prefers-reduced-motion: reduce){ .io-fond,.io-carte{animation:none;} }
 `;
@@ -235,7 +280,7 @@ export default function InscriptionOverlay() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
 
-        <SceneCurseurs />
+        <div className="io-visuel"><SceneCurseurs /></div>
 
         <div className="io-corps">
           {envoye ? (
