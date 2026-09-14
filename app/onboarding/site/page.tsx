@@ -42,7 +42,13 @@ export default function SitePage() {
   useEffect(() => {
     if (lance.current) return;
     const depuisLanding = new URLSearchParams(location.search).get("site");
-    if (!depuisLanding) return;
+    if (!depuisLanding) {
+      // Un site déjà donné (retour en arrière, second essai) est proposé
+      // pré-rempli : on le relit ou on le corrige, sans le retaper.
+      const connu = lireDraft()?.url;
+      if (connu) setSite(connu);
+      return;
+    }
     lance.current = true;
     history.replaceState(null, "", location.pathname);
     setSite(depuisLanding);

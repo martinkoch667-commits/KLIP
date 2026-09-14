@@ -43,9 +43,12 @@ const ERREURS: Record<string, string> = {
   unknown: "La connexion n'a pas abouti. Réessayez dans un instant.",
 };
 
-/** L'étape suivante : le site, sauf s'il est déjà lu (ou écarté). */
-function etapeSuivante(d: OnbDraft | null) {
-  return d?.url || d?.sansSite ? "/onboarding/questionnaire" : "/onboarding/site";
+/** L'étape suivante est TOUJOURS le site, qu'on relie un compte ou qu'on passe
+ *  (Martin, 2026-09-14). Avant, un site gardé d'un essai précédent dans le même
+ *  onglet faisait sauter l'étape : « Passer » menait au questionnaire. Le site
+ *  déjà connu est proposé pré-rempli sur l'écran suivant. */
+function etapeSuivante(_d: OnbDraft | null) {
+  return "/onboarding/site";
 }
 
 function IcInstagram() {
