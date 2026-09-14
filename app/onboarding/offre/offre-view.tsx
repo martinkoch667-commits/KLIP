@@ -2,33 +2,33 @@
 
 /* Page d'offre du parcours d'essai.
  *
- * LA COMPOSITION reste celle du croquis de Martin : l'écran coupé par une
- * diagonale, les offres sur la partie claire, une grille de posts inclinée sur
- * la partie sombre. Sous 1100 px la diagonale ne tient plus : on empile.
+ * LE STYLE est celui de la carte « Curseurs », étendu à toute la page à la
+ * demande de Martin (2026-09-14) : halo violet, verre dépoli, cadres de
+ * sélection à poignées carrées, curseurs nommés, ombres douces teintées de
+ * violet, étiquettes aux coins arrondis avec liseré. C'est le vocabulaire de
+ * l'éditeur : la page montre l'outil en même temps qu'elle vend l'offre.
  *
- * « KLIP REMPLACE TOUT ÇA » est une carte (remplace.tsx) à trois propositions,
- * départagées par un sélecteur visible partout sauf sur getklip.fr (?c= dans
- * l'adresse). Elle est posée sur la
- * zone sombre en desktop. En mobile elle ouvre la page, à cheval sur le bas du
- * bandeau : c'est l'argument qu'on veut lire avant les prix, pas après.
+ * LA COMPOSITION reste celle du croquis de Martin : l'écran coupé par une
+ * diagonale, les offres sur la partie claire, les visuels sur l'autre. La
+ * partie sombre est devenue un halo, et la grille inclinée une grille droite de
+ * cases en verre. Sous 1100 px la diagonale ne tient plus : on empile.
+ *
+ * LA CARTE « SIX ABONNEMENTS, UN SEUL OUTIL » (remplace.tsx) est posée sur le
+ * halo en desktop. En mobile elle ouvre la page, à cheval sur le bas du
+ * bandeau : c'est l'argument qu'on veut lire avant les prix.
  *
  * LE TITRE est posé côte à côte avec le texte et le choix de période (retenu
- * par Martin parmi quatre dispositions, le 2026-09-14) : le titre à gauche sur
- * deux lignes, le reste à droite. En mobile, le même bloc s'aligne à gauche.
+ * parmi quatre dispositions) : le titre à gauche sur deux lignes, le reste à
+ * droite. Le mot final est sélectionné, un curseur « Vous » dessus.
  *
- * LES PRIX SONT CEUX DE LA LANDING, au pixel près. Même carte, mêmes jetons de
- * couleur (ceux de `.v3`, pas ceux de l'app, dont le forest n'est pas le même),
- * même badge de lancement, même prix barré, mêmes textes tirés de
- * `landing.pricing`. La personne a vu cette grille sur la landing deux minutes
- * plus tôt : elle doit la reconnaître, pas la redécouvrir. Seules les tailles
- * descendent, parce que trois cartes tiennent ici dans la moitié de l'écran.
+ * LES PRIX SONT CEUX DE LA LANDING : mêmes chiffres, même badge de lancement,
+ * même prix barré, mêmes textes tirés de `landing.pricing`. Seuls les contenants
+ * prennent le style de la page (coins, ombres, étiquettes).
  *
- * LES LISTES DE FONCTIONNALITÉS NE SONT PAS REPRISES. À ce stade la personne a
- * déjà vu sa charte et ses visuels : la carte n'a plus à convaincre, seulement
- * à laisser choisir. Huit lignes par offre la rendaient trois écrans plus
- * longue sur mobile.
+ * LES LISTES DE FONCTIONNALITÉS NE SONT PAS REPRISES : à ce stade la personne a
+ * déjà vu sa charte, la carte n'a plus qu'à laisser choisir.
  *
- * LES VISUELS sont des cases grises en attendant ceux de Martin. Déposer des
+ * LES VISUELS sont des cases vides en attendant ceux de Martin. Déposer des
  * images dans `public/vitrine/` suffit à les remplacer (voir /api/vitrine).
  */
 
@@ -38,212 +38,227 @@ import { useLocale, useTranslations } from "next-intl";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
-import CarteOutils, { CARTE_CSS, CARTES, type Carte } from "./remplace";
+import CarteCurseurs, { CARTE_CSS } from "./remplace";
 
-/* Assez de cases pour REMPLIR la grille inclinée, qui déborde de l'écran : à
-   150 px sur une zone d'environ 1100 × 1400 px, il en faut une cinquantaine. */
-const NB_CASES = 56;
+/* Quatre colonnes décalées d'une demi-case sur deux, sur assez de rangées pour
+   remplir le halo en hauteur. */
+const NB_CASES = 28;
+
+/** La flèche de curseur, pointe en haut à gauche. */
+function Fleche({ className }: { className: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 2.5 21 10l-8.2 2.3L10 21 3 2.5Z" />
+    </svg>
+  );
+}
 
 const CSS = `
-  /* Jetons de la landing (.v3), redéclarés ici : ceux de globals.css ont un
-     autre forest et une autre encre, et la carte ne serait plus la même. */
+  /* Jetons de la landing (.v3) pour les cartes de prix, et ceux de la carte
+     Curseurs pour le reste (violets, étiquettes). */
   .pv{
-    --paper:#FFFFFF; --paper-3:#F1F0E9; --card:#FFFFFF;
+    --fond:#F4F5F1; --card:#FFFFFF; --paper-3:#F1F0E9;
     --forest:#072117; --forest-2:#0C3123;
     --ink:#10130B; --ink-2:#50544A; --ink-3:#8A8D7D;
     --line:rgba(16,19,11,.14); --line-2:rgba(16,19,11,.08);
     --cream:#F1F0E5; --cream-2:rgba(241,240,229,.66); --cream-3:rgba(241,240,229,.36);
-    --leaf:#BDF2A0; --leaf-soft:#D9F8C7; --leaf-ink:#1E3317; --mint-2:#1FA878;
-    --vio:#6656D9;
+    --leaf:#BDF2A0; --leaf-ink:#1E3317;
+    --vio:#6656D9; --vio-ombre:rgba(52,36,150,.38);
     --oaks-x:'oaks-expanded', Georgia, serif;
     --heavy:'Archivo', system-ui, sans-serif;
     --sans:'early-sans-variable','Hanken Grotesk', system-ui, sans-serif;
-    --r:18px;
     position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;
-    background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;
+    /* Une lueur lavande très légère derrière le titre, écho du halo. */
+    background:radial-gradient(38% 34% at 0% 0%,rgba(157,144,255,.16),transparent 70%),var(--fond);
+    color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;
   }
   .pv *,.pv *::before,.pv *::after{box-sizing:border-box;}
   .pv button{font-family:inherit;cursor:pointer;border:none;background:none;}
 
-  /* ── La zone sombre, coupée en diagonale ─────────────────────────────── */
-  .pv-sombre{position:absolute;inset:0;background:var(--forest);
-    clip-path:polygon(70% 0, 100% 0, 100% 100%, 60% 100%);}
-  /* Gouttières sombres et cases grises : sur des gouttières claires, la zone
-     entière virait au gris clair et on ne voyait plus la diagonale.
-     PAS DE HAUTEUR sur la grille : avec une hauteur fixe, la grille répartit
-     cette hauteur entre les rangées (29 px chacune) au lieu de suivre les cases
-     (100 px), qui se chevauchaient alors sans gouttière horizontale. La grille
-     prend sa hauteur naturelle, et c'est la découpe de la zone sombre qui la
-     rogne. Cases à TAILLE FIXE partout : en fractions de la largeur, elles
-     faisaient 210 px sur tablette.
-     Pivot EN HAUT : une grille de 56 cases mesure 2 000 px de haut, et pivotée
-     autour de son centre, son haut (la seule partie visible sur mobile) partait
-     de 170 px vers la gauche et laissait le bandeau à moitié vide. */
-  .pv-mur{position:absolute;top:-24%;left:40%;width:90%;transform:rotate(-10deg);transform-origin:50% 0;
-    display:grid;grid-template-columns:repeat(auto-fill,140px);justify-content:center;
-    gap:14px;align-content:start;}
-  .pv-case{width:100%;aspect-ratio:4/5;border-radius:6px;overflow:hidden;background:#D5D7D2;}
+  /* ── Le halo, coupé en diagonale ─────────────────────────────────────── */
+  /* Violet profond en haut, qui s'éclaircit vers le bas : même dégradé que le
+     halo de la carte, à l'échelle de la page. */
+  .pv-halo{position:absolute;inset:0;overflow:hidden;clip-path:polygon(70% 0, 100% 0, 100% 100%, 60% 100%);
+    background:
+      radial-gradient(55% 45% at 78% -8%,#2F22A8 0%,#5646D6 42%,transparent 78%),
+      linear-gradient(180deg,#8C7DFF 0%,#B4A9FF 38%,#DDD8FF 72%,#ECEAFA 100%);}
+  /* Grille DROITE de cases en verre, une colonne sur deux décalée d'une demi-
+     case : inclinée, elle jurait avec les cadres et fenêtres bien d'aplomb du
+     reste de la page. Pas de hauteur fixe sur la grille, sinon les rangées
+     s'écrasent sous la hauteur des cases. */
+  .pv-mur{position:absolute;top:-60px;left:56%;display:grid;grid-template-columns:repeat(4,150px);gap:18px;}
+  .pv-case{position:relative;aspect-ratio:4/5;border-radius:18px;overflow:hidden;
+    background:linear-gradient(160deg,rgba(255,255,255,.5),rgba(255,255,255,.22));
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 24px 44px -26px var(--vio-ombre);}
+  .pv-case:nth-child(4n+2),.pv-case:nth-child(4n+4){translate:0 50%;}
   .pv-case img{width:100%;height:100%;object-fit:cover;display:block;}
 
-  /* ── « Klip remplace tout ça », posé sur la zone sombre ────────────── */
-  /* Centré verticalement, calé à droite : à mi-hauteur la diagonale passe à
-     65 % de la largeur, le bloc commence toujours après. */
+  /* ── La carte « un seul outil », posée sur le halo ───────────────────── */
   .pv-remplace-large{position:absolute;top:50%;right:clamp(28px,3.2vw,64px);translate:0 -50%;z-index:3;
     width:min(380px,29vw);}
   .pv-remplace-mobile{display:none;}
 
-  /* ── Sélecteur de carte (aperçu seulement) ───────────────────────────── */
-  .pv-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
-    display:flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:var(--ink);
-    box-shadow:0 18px 40px -12px rgba(0,0,0,.5);max-width:calc(100vw - 24px);}
-  .pv-choix-lib{padding:0 8px 0 10px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.5);}
-  .pv .pv-choix button{padding:8px 13px;border-radius:999px;font-weight:800;font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;}
-  .pv .pv-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
-
   /* ── La partie claire ────────────────────────────────────────────────── */
   .pv-marque{position:absolute;top:28px;left:clamp(24px,4vw,56px);z-index:4;line-height:0;}
-  .pv-marque img{height:34px;width:34px;border-radius:10px;display:block;}
-  /* Largeur calée sur le bas de la diagonale (60 %), moins une marge : c'est là
-     que la zone sombre avance le plus vers la gauche. */
-  /* 128 px en haut : à 96, le titre arrivait à 34 px sous le logo et les deux
-     se touchaient presque. */
+  .pv-marque img{height:34px;width:34px;border-radius:10px;display:block;box-shadow:0 8px 18px -10px rgba(16,19,11,.5);}
+  /* Largeur calée sur le bas de la diagonale (60 %), moins une marge. 128 px en
+     haut : le titre respire sous le logo. */
   .pv-clair{position:relative;z-index:2;width:calc(60% - 36px);max-width:900px;min-height:100dvh;
     display:flex;flex-direction:column;justify-content:center;
     padding:128px 0 44px clamp(24px,4vw,56px);}
 
-  .pv-h1{font-family:var(--heavy);font-weight:800;text-transform:uppercase;letter-spacing:-.03em;
-    line-height:.98;text-wrap:balance;font-size:clamp(34px,3.4vw,52px);margin:0;}
-  .pv-lead{color:var(--ink-2);font-size:17px;line-height:1.55;margin:14px 0 0;max-width:46ch;text-wrap:pretty;}
-
-  /* ── Le titre, côte à côte avec le texte et la période ────────────────── */
-  /* Titre à gauche sur deux lignes, texte et période à droite, CENTRÉS sur la
-     hauteur du titre : calés en bas, ils paraissaient tomber. L'écart entre les
-     deux colonnes monte à ~70 px, à 36 px le texte collait au « S » de
-     « VISUELS ». */
+  /* ── L'en-tête : titre à gauche, texte et période à droite ───────────── */
   .pv-tete{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:clamp(40px,5vw,88px);
     align-items:center;width:100%;}
-  /* Chaque ligne du titre est un bloc : la coupure est choisie, pas laissée au
-     hasard de la largeur. */
-  .pv-h1 .pv-l{display:block;}
-  .pv-h1.is-deux{font-size:clamp(40px,4vw,62px);line-height:.94;}
-  .pv-h1.is-deux .pv-l + .pv-l{margin-top:.1em;}
+  /* Casse normale et léger relief, comme le titre du document de la carte. */
+  .pv-h1{margin:0;font-family:var(--heavy);font-weight:800;letter-spacing:-.045em;line-height:1;
+    font-size:clamp(42px,4.2vw,64px);color:#1D2019;text-shadow:0 3px 12px rgba(16,19,11,.12);}
+  .pv-h1 .pv-l{display:block;white-space:nowrap;}
+  .pv-h1 .pv-l + .pv-l{margin-top:.14em;}
   .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;}
-  .pv-tete .pv-lead{margin:0;font-size:15.5px;line-height:1.5;max-width:30ch;}
-  .pv-tete .pv-periode{margin-top:16px;}
-  /* La colonne de droite est étroite : sans ça, « 2 mois offerts » passait sur
-     deux lignes et gonflait la pastille. */
-  .pv-tete .pv-periode button{padding:8px 13px;white-space:nowrap;}
-  .pv-deux{white-space:nowrap;}
+  .pv-lead{margin:0;color:var(--ink-2);font-size:15.5px;line-height:1.5;max-width:30ch;text-wrap:pretty;}
 
-  /* Sélecteur de période : celui de la landing. */
-  .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:22px;padding:5px;
-    border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
-  .pv-periode button{padding:9px 18px;border-radius:999px;font-weight:800;font-size:14px;color:var(--ink-2);
+  /* Le mot sélectionné : cadre violet et poignées carrées de l'éditeur. */
+  .pv-mot{--o:8px;position:relative;display:inline-block;outline:2px solid var(--vio);outline-offset:var(--o);border-radius:2px;}
+  .pv-mot i{position:absolute;width:11px;height:11px;background:#fff;border:2px solid var(--vio);border-radius:2px;}
+  .pv-mot i:nth-of-type(1){top:calc(-1 * var(--o) - 5.5px);left:calc(-1 * var(--o) - 5.5px);}
+  .pv-mot i:nth-of-type(2){top:calc(-1 * var(--o) - 5.5px);right:calc(-1 * var(--o) - 5.5px);}
+  .pv-mot i:nth-of-type(3){bottom:calc(-1 * var(--o) - 5.5px);left:calc(-1 * var(--o) - 5.5px);}
+  .pv-mot i:nth-of-type(4){bottom:calc(-1 * var(--o) - 5.5px);right:calc(-1 * var(--o) - 5.5px);}
+
+  /* Curseurs nommés de la page, mêmes couleurs que ceux de la carte. */
+  .pv-curseur{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;
+    font-family:var(--sans);letter-spacing:0;text-shadow:none;
+    animation:pv-flotte 3.4s ease-in-out var(--d,0s) infinite alternate;}
+  .pv-fleche{width:20px;height:20px;stroke:#fff;stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25));}
+  .pv-etiquette{margin:2px 0 0 13px;padding:4px 11px;border-radius:10px;font-size:14px;font-weight:650;line-height:1.3;white-space:nowrap;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 16px -8px rgba(16,19,11,.35);}
+  .pv-curseur.is-vert .pv-fleche{fill:#7ED66A;} .pv-curseur.is-vert .pv-etiquette{background:#DDF8CF;color:#2E6A1D;border:1.5px solid #A6E68A;}
+  .pv-curseur.is-violet .pv-fleche{fill:#8C7DFF;} .pv-curseur.is-violet .pv-etiquette{background:#E6E1FF;color:#4B3BC4;border:1.5px solid #B9AEFF;}
+  @keyframes pv-flotte{from{translate:0 0;}to{translate:4px -5px;}}
+  /* « Vous » au coin bas droit du mot, dans l'espace entre l'en-tête et les
+     cartes : à droite du mot, il tombait sur le choix de période. */
+  .pv-mot .pv-curseur{left:calc(100% + 2px);top:calc(100% + 4px);}
+
+  /* Sélecteur de période : pastille de verre. */
+  .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:16px;padding:5px;
+    border-radius:999px;background:rgba(255,255,255,.8);
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.07),0 16px 32px -22px var(--vio-ombre);}
+  .pv-periode button{padding:8px 13px;border-radius:999px;font-weight:800;font-size:14px;color:var(--ink-2);white-space:nowrap;
     display:inline-flex;align-items:center;gap:8px;transition:background .2s,color .2s;}
-  .pv-periode button.is-on{background:var(--ink);color:var(--paper);}
-  .pv-deux{font-size:11px;padding:2px 7px;border-radius:999px;background:var(--leaf);color:var(--leaf-ink);}
+  .pv-periode button.is-on{background:var(--ink);color:#fff;}
+  .pv-deux{font-size:11px;padding:2px 7px;border-radius:7px;white-space:nowrap;
+    background:#DDF8CF;color:#2E6A1D;box-shadow:inset 0 0 0 1px #A6E68A;}
 
-  /* ── Les cartes : la section Tarifs de la landing ───────────────────── */
-  /* 64 px sous l'en-tête : la carte Studio remonte de 14 px et son étiquette
-     déborde encore de 16, à 44 elle venait toucher le choix de période. */
-  .pv-grille{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:64px;align-items:stretch;}
-  .pv-col{display:flex;min-width:0;}
+  /* ── Les cartes de prix ─────────────────────────────────────────────── */
+  /* 72 px sous l'en-tête : place pour le curseur « Vous » et pour l'étiquette
+     de la carte Studio, qui remonte. */
+  .pv-grille{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:72px;align-items:stretch;}
+  .pv-col{position:relative;display:flex;min-width:0;}
   .pv-col.is-pop{transform:translateY(-14px);}
-  .pv-carte{position:relative;flex:1;display:flex;flex-direction:column;min-width:0;
-    background:var(--card);color:var(--ink);border-radius:var(--r);padding:26px 20px 22px;
-    border:1px solid var(--line);box-shadow:0 20px 44px -30px rgba(16,19,11,.2);}
-  .pv-carte.is-pop{background:var(--forest);color:var(--cream);border:none;
-    box-shadow:0 40px 80px -40px rgba(7,33,23,.7);}
+  /* Lueur violette floue sous la carte mise en avant, comme au bas des
+     fenêtres de la carte Curseurs. */
+  .pv-col.is-pop::before{content:"";position:absolute;left:8%;right:8%;bottom:-18px;height:60%;border-radius:50%;
+    background:#9C8CFF;filter:blur(34px);opacity:.55;z-index:0;}
+  .pv-carte{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;min-width:0;
+    background:var(--card);color:var(--ink);border-radius:24px;padding:26px 20px 22px;
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 30px 60px -40px var(--vio-ombre);}
+  .pv-carte.is-pop{color:var(--cream);
+    background:radial-gradient(120% 70% at 50% -12%,#17402E 0%,var(--forest) 62%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 40px 80px -40px rgba(7,33,23,.7);}
 
-  /* Le cadre de sélection violet de l'éditeur, posé sur l'offre mise en avant. */
+  /* Le cadre de sélection de l'offre mise en avant : poignées carrées. */
   .pv-sel{position:relative;display:flex;flex:1;min-width:0;}
+  /* Cadre droit autour d'une carte arrondie, poignées sur ses coins : c'est la
+     sélection de l'éditeur, qui encadre la boîte et pas la forme. */
   .pv-sel-cadre{position:absolute;inset:-10px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;z-index:2;}
-  .pv-sel-h{position:absolute;width:13px;height:13px;background:#fff;border:2px solid var(--vio);border-radius:50%;
+  .pv-sel-h{position:absolute;width:12px;height:12px;background:#fff;border:2px solid var(--vio);border-radius:3px;
     box-shadow:0 2px 6px rgba(16,19,11,.18);}
-  .pv-sel-p{position:absolute;background:#fff;border:2px solid var(--vio);border-radius:999px;
-    box-shadow:0 2px 6px rgba(16,19,11,.18);}
+  .pv-sel-h:nth-child(1){top:-7px;left:-7px;} .pv-sel-h:nth-child(2){top:-7px;right:-7px;}
+  .pv-sel-h:nth-child(3){bottom:-7px;left:-7px;} .pv-sel-h:nth-child(4){bottom:-7px;right:-7px;}
 
-  .pv-flag{position:absolute;top:-16px;right:18px;rotate:3deg;z-index:3;display:inline-flex;align-items:center;
-    background:var(--leaf);color:var(--leaf-ink);border-radius:14px;padding:8px 13px;
-    font-weight:800;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
-    box-shadow:0 18px 36px -16px rgba(120,190,90,.5);}
+  /* « Le plus choisi » : un curseur qui désigne la carte. */
+  .pv-flag{position:absolute;top:-30px;right:22px;z-index:3;pointer-events:none;
+    animation:pv-flotte 3.4s ease-in-out -1.4s infinite alternate;}
+  .pv-flag-txt{display:block;padding:5px 12px;border-radius:10px;font-size:13.5px;font-weight:700;white-space:nowrap;
+    background:#E6E1FF;color:#4B3BC4;border:1.5px solid #B9AEFF;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 10px 20px -10px var(--vio-ombre);}
+  .pv-flag .pv-fleche{position:absolute;left:-15px;bottom:-15px;fill:#8C7DFF;transform:scaleY(-1);}
+
   .pv-nom{font-family:var(--oaks-x);font-weight:700;text-transform:uppercase;letter-spacing:.015em;
     line-height:.95;font-size:21px;margin:0;}
   .pv-tag{font-weight:600;font-size:13px;line-height:1.35;color:var(--ink-3);margin-top:6px;}
   .pv-carte.is-pop .pv-tag{color:var(--cream-3);}
-  .pv-badge{display:inline-flex;align-self:flex-start;align-items:center;margin-top:18px;padding:6px 10px;
-    border-radius:999px;background:var(--leaf-soft);color:var(--leaf-ink);
-    font-weight:800;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;}
-  .pv-carte.is-pop .pv-badge{background:var(--leaf);}
+  /* Étiquettes aux coins arrondis avec liseré, comme celles des curseurs. */
+  .pv-badge{display:inline-flex;align-self:flex-start;align-items:center;margin-top:18px;padding:5px 9px;
+    border-radius:9px;background:#DDF8CF;color:#2E6A1D;box-shadow:inset 0 0 0 1.5px #A6E68A;
+    font-weight:800;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
   .pv-prix{display:flex;align-items:baseline;column-gap:8px;row-gap:2px;flex-wrap:wrap;margin:10px 0 2px;}
   .pv-prix.sans-remise{margin-top:22px;}
   .pv-barre{font-family:var(--heavy);font-weight:800;font-size:clamp(20px,1.7vw,26px);letter-spacing:-.03em;line-height:1;
     color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:2px;white-space:nowrap;}
-  .pv-montant{font-family:var(--heavy);font-weight:800;font-size:clamp(36px,3.1vw,50px);letter-spacing:-.04em;line-height:1;
-    white-space:nowrap;}
+  .pv-montant{font-family:var(--heavy);font-weight:800;font-size:clamp(36px,3.1vw,50px);letter-spacing:-.04em;line-height:1;white-space:nowrap;}
   .pv-mois{font-weight:700;font-size:13px;color:var(--ink-3);}
   .pv-carte.is-pop .pv-barre{color:var(--cream-3);}
   .pv-carte.is-pop .pv-mois{color:var(--cream-2);}
   .pv-note{font-size:12px;line-height:1.45;color:var(--ink-3);margin:6px 0 16px;min-height:16px;}
   .pv-carte.is-pop .pv-note{color:var(--cream-3);}
-  .pv-chip{display:inline-flex;align-self:flex-start;align-items:center;padding:8px 14px;border-radius:999px;
-    font-weight:700;font-size:12.5px;letter-spacing:.02em;white-space:nowrap;
-    background:var(--paper-3);color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line);}
-  .pv-carte.is-pop .pv-chip{background:var(--forest-2);color:var(--cream-2);}
+  .pv-chip{display:inline-flex;align-self:flex-start;align-items:center;padding:7px 12px;border-radius:10px;
+    font-weight:700;font-size:12.5px;white-space:nowrap;background:var(--fond);color:var(--ink-2);
+    box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.07);}
+  .pv-carte.is-pop .pv-chip{background:rgba(255,255,255,.07);color:var(--cream-2);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.1);}
   .pv-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;
     min-height:52px;padding:14px 16px;border-radius:999px;font-weight:800;font-size:15px;letter-spacing:-.01em;
     transition:box-shadow .2s,background .2s;white-space:nowrap;}
   /* Préfixés par .pv : la remise à zéro « .pv button » (fond transparent) est
-     plus spécifique qu'une classe seule, et le bouton leaf sortait sans fond,
-     invisible sur la carte sombre. */
-  .pv .pv-btn-ghost{color:var(--ink);box-shadow:inset 0 0 0 1.6px var(--line);}
+     plus spécifique qu'une classe seule. */
+  .pv .pv-btn-ghost{color:var(--ink);background:#fff;box-shadow:inset 0 0 0 1.6px var(--line),0 10px 20px -16px var(--vio-ombre);}
   .pv .pv-btn-ghost:hover{box-shadow:inset 0 0 0 2px var(--ink);}
-  .pv .pv-btn-leaf{background:var(--leaf);color:var(--leaf-ink);box-shadow:0 16px 32px -16px rgba(120,190,90,.55);}
+  .pv .pv-btn-leaf{background:var(--leaf);color:var(--leaf-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 16px 32px -16px rgba(120,190,90,.55);}
   .pv .pv-btn-leaf:hover{background:#C9F5B2;}
-  /* L'espace extensible aligne les boutons en bas des trois cartes, même quand
-     la note de lancement prend une ligne de plus sur l'une d'elles. */
+  /* L'espace extensible aligne les boutons en bas des trois cartes. */
   .pv-espace{flex:1;min-height:22px;}
 
-  /* Trois cartes dans la moitié de l'écran : le prix barré ne tient pas à côté
-     du prix sur Studio (« 32,50€ 22,75€ »), et passait à la ligne sur cette
-     carte seulement. Au-dessus du prix sur les trois, la grille reste égale. */
+  /* Trois cartes dans la moitié de l'écran : le prix barré passe au-dessus du
+     prix sur les trois, faute de place à côté sur Studio. */
   @media(min-width:1101px){ .pv-barre{flex-basis:100%;} }
 
-  .pv-rassure{margin:26px 0 0;font-size:13.5px;line-height:1.5;color:var(--ink-3);}
+  .pv-rassure{margin:28px 0 0;font-size:13.5px;line-height:1.5;color:var(--ink-3);}
   .pv-rassure b{color:var(--ink-2);}
+
+  @media (prefers-reduced-motion: reduce){ .pv-curseur,.pv-flag{animation:none;} }
 
   /* ── Sous 1100 px : la diagonale ne tient plus, on empile ────────────── */
   @media(max-width:1100px){
     .pv{min-height:0;}
-    .pv-sombre{position:relative;inset:auto;height:30vh;min-height:210px;max-height:300px;
-      clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);}
-    .pv-mur{top:-40%;left:-20%;width:140%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
+    .pv-halo{position:relative;inset:auto;height:30vh;min-height:210px;max-height:300px;
+      clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);
+      background:
+        radial-gradient(70% 70% at 60% -15%,#2F22A8 0%,#5646D6 45%,transparent 80%),
+        linear-gradient(180deg,#8C7DFF 0%,#B4A9FF 60%,#CFC8FF 100%);}
+    .pv-mur{top:-34px;left:50%;translate:-50% 0;grid-template-columns:repeat(4,96px);gap:12px;}
+    .pv-case{border-radius:14px;}
     .pv-remplace-large{display:none;}
-    /* En tête de page, remontée de 84 px sur le bas du bandeau sombre : posée
-       sous les cartes, on ne la voyait qu'après avoir fait défiler les trois
-       offres. Martin la veut avant les prix. */
-    .pv-remplace-mobile{display:block;position:relative;width:100%;max-width:420px;margin:-84px auto 36px;text-align:left;}
-    .pv.a-choix .pv-clair{padding-bottom:96px;}
+    /* En tête de page, remontée sur le bas du bandeau : Martin la veut avant
+       les prix. */
+    .pv-remplace-mobile{display:block;position:relative;width:100%;max-width:420px;margin:-84px auto 40px;text-align:left;}
     .pv-marque{top:18px;left:20px;}
-    .pv-marque img{box-shadow:0 4px 14px rgba(0,0,0,.35);}
-    .pv-clair{width:100%;max-width:none;min-height:0;align-items:center;text-align:center;
-      padding:26px 20px 48px;}
-    .pv-lead{margin-left:auto;margin-right:auto;}
-    .pv-periode{align-self:center;}
+    .pv-clair{width:100%;max-width:none;min-height:0;align-items:center;text-align:center;padding:26px 20px 48px;}
     /* Plus la place pour deux colonnes : le bloc s'empile, aligné à gauche
        comme les cartes en dessous. */
     .pv-tete{display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:980px;}
-    .pv-tete .pv-lead{margin:14px 0 0;font-size:16px;max-width:40ch;}
-    .pv-tete .pv-periode{align-self:flex-start;margin-top:20px;}
+    .pv-tete .pv-lead{margin:18px 0 0;font-size:16px;max-width:40ch;}
+    .pv-periode{align-self:flex-start;margin-top:20px;}
     .pv-grille{width:100%;max-width:980px;text-align:left;}
     .pv-rassure{max-width:44ch;}
+    /* À droite du mot : sous le titre, « Vous » tombait sur le texte. */
+    .pv-mot .pv-curseur{left:calc(100% + 14px);top:30%;}
   }
   /* Trois cartes côte à côte ne tiennent plus : une colonne, comme la landing. */
   @media(max-width:760px){
-    .pv-h1{font-size:clamp(30px,8.4vw,40px);}
-    .pv-h1.is-deux{font-size:clamp(36px,10.4vw,48px);}
-    .pv-lead{font-size:16px;}
-    .pv-grille{grid-template-columns:1fr;max-width:420px;gap:26px;margin-top:38px;}
+    .pv-h1{font-size:clamp(38px,11vw,50px);}
+    .pv-mot{--o:6px;}
+    .pv-grille{grid-template-columns:1fr;max-width:420px;gap:30px;margin-top:44px;}
     .pv-col.is-pop{transform:none;}
     .pv-sel-cadre{inset:-7px;}
     .pv-carte{padding:28px 24px 24px;}
@@ -268,26 +283,18 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const [periode, setPeriode] = useState<"monthly" | "yearly">("yearly");
   const [nom, setNom] = useState("");
   const [visuels, setVisuels] = useState<string[]>([]);
-  const [carte, setCarte] = useState<Carte>("curseurs");
-  /* Le sélecteur sert à départager les cartes : il n'a rien à faire devant un
-     vrai visiteur. Décidé après montage, `location` n'existant pas au rendu
-     serveur. */
-  const [apercu, setApercu] = useState(false);
 
   // Même règle que la landing : sans compte connu, l'offre reste ouverte.
   const lancement = launchApplies(periode) && (seatsLeft === null || seatsLeft > 0);
   const annuel = periode === "yearly";
 
   useEffect(() => {
-    setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
-    const c = new URLSearchParams(location.search).get("c");
-    if (CARTES.some(x => x.cle === c)) setCarte(c as Carte);
     setNom(lireDraft()?.name ?? "");
-    // Les visuels déposés par Martin prennent la place des cases grises.
+    // Les visuels déposés par Martin prennent la place des cases vides.
     fetch("/api/vitrine")
       .then(r => r.json())
       .then(j => { if (Array.isArray(j?.visuels) && j.visuels.length) setVisuels(j.visuels); })
-      .catch(() => { /* les cases grises restent */ });
+      .catch(() => { /* les cases restent vides */ });
   }, []);
 
   const offres: Offre[] = [
@@ -307,40 +314,32 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     return annuel ? tp("billedYear", { total: fmt(o.annuel * 12) }) : tp("billedMonth");
   }
 
-  function choisir(c: Carte) {
-    setCarte(c);
-    // Dans l'adresse, pour pouvoir envoyer une carte précise en lien.
-    const url = new URL(location.href);
-    url.searchParams.set("c", c);
-    history.replaceState(null, "", url);
-  }
-
   /* Le prix Studio TEL QUE LA CARTE L'AFFICHE, période et remise comprises :
      c'est lui qu'on oppose à la pile d'outils. */
   const studioAffiche = annuel ? PLANS.solo.priceYearly : PLANS.solo.priceMonthly;
   const prixStudio = lancement ? launchPrice(studioAffiche) : studioAffiche;
 
-  const periodeUI = (
-    <div className="pv-periode">
-      <button className={periode === "monthly" ? "is-on" : ""} onClick={() => setPeriode("monthly")}>{tp("monthly")}</button>
-      <button className={annuel ? "is-on" : ""} onClick={() => setPeriode("yearly")}>
-        {tp("yearly")}<span className="pv-deux">{tp("save2mo")}</span>
-      </button>
-    </div>
+  /** Le dernier mot du titre, sélectionné, avec le curseur « Vous » dessus. */
+  const motChoisi = (texte: string) => (
+    <span className="pv-mot">
+      {texte}
+      <i /><i /><i /><i />
+      <span className="pv-curseur is-vert" aria-hidden="true">
+        <Fleche className="pv-fleche" />
+        <span className="pv-etiquette">Vous</span>
+      </span>
+    </span>
   );
-  const enDeuxLignes = nom
-    ? <><span className="pv-l">Les visuels de</span><span className="pv-l"><span className="acc-hl">{nom}</span></span></>
-    : <><span className="pv-l">Vos visuels</span><span className="pv-l">sont <span className="acc-hl">prêts</span></span></>;
 
   const cases = visuels.length
-    ? Array.from({ length: NB_CASES }, (_, i) => visuels[(i * 3 + Math.floor(i / 7)) % visuels.length])
+    ? Array.from({ length: NB_CASES }, (_, i) => visuels[(i * 3 + Math.floor(i / 5)) % visuels.length])
     : Array<string>(NB_CASES).fill("");
 
   return (
-    <div className={"pv" + (apercu ? " a-choix" : "")}>
+    <div className="pv">
       <style dangerouslySetInnerHTML={{ __html: CSS + CARTE_CSS }} />
 
-      <div className="pv-sombre" aria-hidden="true">
+      <div className="pv-halo" aria-hidden="true">
         <div className="pv-mur">
           {cases.map((v, i) => (
             <div className="pv-case" key={i}>
@@ -352,21 +351,32 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
       </div>
 
       <div className="pv-remplace-large">
-        <CarteOutils carte={carte} prix={prixStudio} fmt={fmt} />
+        <CarteCurseurs prix={prixStudio} fmt={fmt} />
       </div>
 
       <Link href="/" className="pv-marque"><img src="/icon-192.png" alt="Klip" /></Link>
 
       <div className="pv-clair">
         <div className="pv-remplace-mobile">
-          <CarteOutils carte={carte} prix={prixStudio} fmt={fmt} />
+          <CarteCurseurs prix={prixStudio} fmt={fmt} />
         </div>
 
         <div className="pv-tete">
-          <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
+          <h1 className="pv-h1">
+            {nom ? (
+              <><span className="pv-l">Les visuels de</span><span className="pv-l">{motChoisi(nom)}</span></>
+            ) : (
+              <><span className="pv-l">Vos visuels</span><span className="pv-l">sont {motChoisi("prêts")}</span></>
+            )}
+          </h1>
           <div className="pv-tete-droite">
             <p className="pv-lead">Chacun s&apos;ouvre dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.</p>
-            {periodeUI}
+            <div className="pv-periode">
+              <button className={periode === "monthly" ? "is-on" : ""} onClick={() => setPeriode("monthly")}>{tp("monthly")}</button>
+              <button className={annuel ? "is-on" : ""} onClick={() => setPeriode("yearly")}>
+                {tp("yearly")}<span className="pv-deux">{tp("save2mo")}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -375,7 +385,12 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
             const affiche = annuel ? o.annuel : o.mensuel;
             const carte = (
               <div className={"pv-carte" + (o.pop ? " is-pop" : "")}>
-                {o.pop && <span className="pv-flag">{tp("popular")}</span>}
+                {o.pop && (
+                  <span className="pv-flag">
+                    <span className="pv-flag-txt">{tp("popular")}</span>
+                    <Fleche className="pv-fleche" />
+                  </span>
+                )}
                 <h3 className="pv-nom">{o.nom}</h3>
                 <div className="pv-tag">{o.tag}</div>
                 {lancement && <div className="pv-badge">{tp("launchBadge", { percent: LAUNCH_OFFER.percent })}</div>}
@@ -399,14 +414,8 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
                   <div className="pv-sel">
                     {carte}
                     <span className="pv-sel-cadre" aria-hidden="true">
-                      <span className="pv-sel-h" style={{ top: -7, left: -7 }} />
-                      <span className="pv-sel-h" style={{ top: -7, right: -7 }} />
-                      <span className="pv-sel-h" style={{ bottom: -7, left: -7 }} />
-                      <span className="pv-sel-h" style={{ bottom: -7, right: -7 }} />
-                      <span className="pv-sel-p" style={{ top: -5, left: "50%", transform: "translateX(-50%)", width: 22, height: 9 }} />
-                      <span className="pv-sel-p" style={{ bottom: -5, left: "50%", transform: "translateX(-50%)", width: 22, height: 9 }} />
-                      <span className="pv-sel-p" style={{ left: -5, top: "50%", transform: "translateY(-50%)", width: 9, height: 22 }} />
-                      <span className="pv-sel-p" style={{ right: -5, top: "50%", transform: "translateY(-50%)", width: 9, height: 22 }} />
+                      <span className="pv-sel-h" /><span className="pv-sel-h" />
+                      <span className="pv-sel-h" /><span className="pv-sel-h" />
                     </span>
                   </div>
                 ) : carte}
@@ -419,17 +428,6 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
           <b>0 € aujourd&apos;hui.</b> Premier prélèvement dans {TRIAL_DAYS} jours, annulable en un clic.
         </p>
       </div>
-
-      {apercu && (
-        <div className="pv-choix" role="group" aria-label="Carte des outils">
-          <span className="pv-choix-lib">Carte</span>
-          {CARTES.map(x => (
-            <button key={x.cle} type="button" className={carte === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
-              {x.nom}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
