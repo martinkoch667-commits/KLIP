@@ -6,9 +6,11 @@
  * diagonale, les offres sur la partie claire, une grille de posts inclinée sur
  * la partie sombre. Sous 1100 px la diagonale ne tient plus : on empile.
  *
- * « KLIP REMPLACE TOUT ÇA » a quatre mises en scène à l'essai (voir remplace.tsx),
- * posées sur la zone sombre en desktop et sous les cartes en mobile. Un
- * sélecteur, visible partout sauf sur getklip.fr, passe de l'une à l'autre.
+ * « KLIP REMPLACE TOUT ÇA » est la carte Fusion (remplace.tsx), posée sur la
+ * zone sombre en desktop et sous les cartes en mobile.
+ *
+ * LE TITRE a quatre dispositions à l'essai. Un sélecteur, visible partout sauf
+ * sur getklip.fr, passe de l'une à l'autre ; ?t= garde le choix dans l'adresse.
  *
  * LES PRIX SONT CEUX DE LA LANDING, au pixel près. Même carte, mêmes jetons de
  * couleur (ceux de `.v3`, pas ceux de l'app, dont le forest n'est pas le même),
@@ -32,7 +34,15 @@ import { useLocale, useTranslations } from "next-intl";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
-import Remplace, { REMPLACE_CSS, VARIANTES, type Variante } from "./remplace";
+import Fusion, { FUSION_CSS } from "./remplace";
+
+type Titre = "deux-lignes" | "cote-a-cote" | "surtitre" | "essai";
+const TITRES: { cle: Titre; nom: string }[] = [
+  { cle: "deux-lignes", nom: "2 lignes" },
+  { cle: "cote-a-cote", nom: "Côte à côte" },
+  { cle: "surtitre", nom: "Surtitre" },
+  { cle: "essai", nom: "Essai" },
+];
 
 /* Assez de cases pour REMPLIR la grille inclinée, qui déborde de l'écran : à
    150 px sur une zone d'environ 1100 × 1400 px, il en faut une cinquantaine. */
@@ -86,6 +96,14 @@ const CSS = `
     width:min(380px,29vw);}
   .pv-remplace-mobile{display:none;}
 
+  /* ── Sélecteur de disposition (aperçu seulement) ─────────────────────── */
+  .pv-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
+    display:flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:var(--ink);
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.5);max-width:calc(100vw - 24px);}
+  .pv-choix-lib{padding:0 8px 0 10px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.5);}
+  .pv .pv-choix button{padding:8px 12px;border-radius:999px;font-weight:800;font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;}
+  .pv .pv-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
+
   /* ── La partie claire ────────────────────────────────────────────────── */
   .pv-marque{position:absolute;top:28px;left:clamp(24px,4vw,56px);z-index:4;line-height:0;}
   .pv-marque img{height:34px;width:34px;border-radius:10px;display:block;}
@@ -98,6 +116,25 @@ const CSS = `
   .pv-h1{font-family:var(--heavy);font-weight:800;text-transform:uppercase;letter-spacing:-.03em;
     line-height:.98;text-wrap:balance;font-size:clamp(34px,3.4vw,52px);margin:0;}
   .pv-lead{color:var(--ink-2);font-size:17px;line-height:1.55;margin:14px 0 0;max-width:46ch;text-wrap:pretty;}
+
+  /* ── Les dispositions du titre ───────────────────────────────────────── */
+  .pv-tete{display:flex;flex-direction:column;align-items:flex-start;}
+  /* Chaque ligne est un bloc : la coupure est choisie, pas laissée au hasard
+     de la largeur. */
+  .pv-h1 .pv-l{display:block;}
+  .pv-h1.is-deux{font-size:clamp(40px,4vw,62px);line-height:.94;}
+  .pv-h1.is-deux .pv-l + .pv-l{margin-top:.1em;}
+  /* Côte à côte : le titre à gauche, le texte et la période à droite, calés
+     sur la ligne de base du titre. On gagne la hauteur d'un paragraphe. */
+  .pv-tete.is-cote{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:clamp(22px,2.6vw,40px);
+    align-items:end;width:100%;}
+  .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;padding-bottom:2px;}
+  .pv-tete.is-cote .pv-lead{margin:0;font-size:15.5px;line-height:1.45;max-width:30ch;}
+  .pv-tete.is-cote .pv-periode{margin-top:14px;}
+  .pv-surtitre{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;padding:6px 13px 6px 6px;border-radius:999px;
+    background:var(--leaf-soft);color:var(--leaf-ink);font-weight:800;font-size:13px;}
+  .pv-surtitre-coche{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--leaf-ink);color:var(--leaf);}
+  .pv-h1.is-sobre{font-size:clamp(30px,2.9vw,44px);}
 
   /* Sélecteur de période : celui de la landing. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:22px;padding:5px;
@@ -189,12 +226,22 @@ const CSS = `
       padding:26px 20px 48px;}
     .pv-lead{margin-left:auto;margin-right:auto;}
     .pv-periode{align-self:center;}
+    .pv-tete{align-items:center;width:100%;}
+    /* Côte à côte n'a plus la place : sur mobile il devient la version
+       alignée à gauche, l'autre façon de poser le même bloc. */
+    .pv-tete.is-cote{display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:980px;}
+    .pv-tete.is-cote .pv-lead{margin:14px 0 0;font-size:16px;max-width:40ch;}
+    .pv-tete.is-cote .pv-periode{align-self:flex-start;margin-top:20px;}
     .pv-grille{width:100%;max-width:980px;text-align:left;}
     .pv-rassure{max-width:44ch;}
   }
   /* Trois cartes côte à côte ne tiennent plus : une colonne, comme la landing. */
   @media(max-width:760px){
     .pv-h1{font-size:clamp(30px,8.4vw,40px);}
+    .pv-h1.is-deux{font-size:clamp(36px,10.4vw,48px);}
+    .pv-h1.is-sobre{font-size:clamp(28px,7.6vw,34px);}
+    .pv .pv-choix button{padding:8px 10px;font-size:12.5px;}
+    .pv-choix-lib{display:none;}
     .pv-lead{font-size:16px;}
     .pv-grille{grid-template-columns:1fr;max-width:420px;gap:26px;margin-top:38px;}
     .pv-col.is-pop{transform:none;}
@@ -221,8 +268,8 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const [periode, setPeriode] = useState<"monthly" | "yearly">("yearly");
   const [nom, setNom] = useState("");
   const [visuels, setVisuels] = useState<string[]>([]);
-  const [variante, setVariante] = useState<Variante>("calques");
-  /* Le sélecteur sert à départager les variantes : il n'a rien à faire devant
+  const [titre, setTitre] = useState<Titre>("deux-lignes");
+  /* Le sélecteur sert à départager les dispositions : il n'a rien à faire devant
      un vrai visiteur. Décidé après montage, `location` n'existant pas au rendu
      serveur. */
   const [apercu, setApercu] = useState(false);
@@ -233,8 +280,8 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
 
   useEffect(() => {
     setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
-    const v = new URLSearchParams(location.search).get("v");
-    if (VARIANTES.some(x => x.cle === v)) setVariante(v as Variante);
+    const t = new URLSearchParams(location.search).get("t");
+    if (TITRES.some(x => x.cle === t)) setTitre(t as Titre);
     setNom(lireDraft()?.name ?? "");
     // Les visuels déposés par Martin prennent la place des cases grises.
     fetch("/api/vitrine")
@@ -260,11 +307,11 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     return annuel ? tp("billedYear", { total: fmt(o.annuel * 12) }) : tp("billedMonth");
   }
 
-  function choisir(v: Variante) {
-    setVariante(v);
-    // Dans l'adresse, pour pouvoir envoyer une variante précise en lien.
+  function choisir(t: Titre) {
+    setTitre(t);
+    // Dans l'adresse, pour pouvoir envoyer une disposition précise en lien.
     const url = new URL(location.href);
-    url.searchParams.set("v", v);
+    url.searchParams.set("t", t);
     history.replaceState(null, "", url);
   }
 
@@ -273,13 +320,68 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const studioAffiche = annuel ? PLANS.solo.priceYearly : PLANS.solo.priceMonthly;
   const prixStudio = lancement ? launchPrice(studioAffiche) : studioAffiche;
 
+  const periodeUI = (
+    <div className="pv-periode">
+      <button className={periode === "monthly" ? "is-on" : ""} onClick={() => setPeriode("monthly")}>{tp("monthly")}</button>
+      <button className={annuel ? "is-on" : ""} onClick={() => setPeriode("yearly")}>
+        {tp("yearly")}<span className="pv-deux">{tp("save2mo")}</span>
+      </button>
+    </div>
+  );
+  const enDeuxLignes = nom
+    ? <><span className="pv-l">Les visuels de</span><span className="pv-l"><span className="acc-hl">{nom}</span></span></>
+    : <><span className="pv-l">Vos visuels</span><span className="pv-l">sont <span className="acc-hl">prêts</span></span></>;
+
+  let entete: React.ReactNode;
+  if (titre === "cote-a-cote") {
+    entete = (
+      <div className="pv-tete is-cote">
+        <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
+        <div className="pv-tete-droite">
+          <p className="pv-lead">Chacun s&apos;ouvre dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.</p>
+          {periodeUI}
+        </div>
+      </div>
+    );
+  } else if (titre === "surtitre") {
+    entete = (
+      <div className="pv-tete">
+        <span className="pv-surtitre">
+          <span className="pv-surtitre-coche" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </span>
+          {nom ? `Charte de ${nom} appliquée` : "Votre charte est appliquée"}
+        </span>
+        <h1 className="pv-h1 is-sobre">Vos visuels sont <span className="acc-hl">prêts</span></h1>
+        <p className="pv-lead">Choisissez une offre pour les ouvrir dans l&apos;éditeur.</p>
+        {periodeUI}
+      </div>
+    );
+  } else if (titre === "essai") {
+    entete = (
+      <div className="pv-tete">
+        <h1 className="pv-h1"><span className="acc-hl">{TRIAL_DAYS} jours</span> pour tout essayer</h1>
+        <p className="pv-lead">{nom ? `Les visuels de ${nom}` : "Vos visuels"} vous attendent dans l&apos;éditeur. Rien à payer aujourd&apos;hui.</p>
+        {periodeUI}
+      </div>
+    );
+  } else {
+    entete = (
+      <div className="pv-tete">
+        <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
+        <p className="pv-lead">Ils s&apos;ouvrent dans l&apos;éditeur, calque par calque.</p>
+        {periodeUI}
+      </div>
+    );
+  }
+
   const cases = visuels.length
     ? Array.from({ length: NB_CASES }, (_, i) => visuels[(i * 3 + Math.floor(i / 7)) % visuels.length])
     : Array<string>(NB_CASES).fill("");
 
   return (
     <div className={"pv" + (apercu ? " a-choix" : "")}>
-      <style dangerouslySetInnerHTML={{ __html: CSS + REMPLACE_CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: CSS + FUSION_CSS }} />
 
       <div className="pv-sombre" aria-hidden="true">
         <div className="pv-mur">
@@ -293,23 +395,13 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
       </div>
 
       <div className="pv-remplace-large">
-        <Remplace variante={variante} prix={prixStudio} fmt={fmt} />
+        <Fusion prix={prixStudio} fmt={fmt} />
       </div>
 
       <Link href="/" className="pv-marque"><img src="/icon-192.png" alt="Klip" /></Link>
 
       <div className="pv-clair">
-        <h1 className="pv-h1">
-          {nom ? <>Les visuels de <span className="acc-hl">{nom}</span></> : <>Vos visuels sont <span className="acc-hl">prêts</span></>}
-        </h1>
-        <p className="pv-lead">Chacun s&apos;ouvre dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.</p>
-
-        <div className="pv-periode">
-          <button className={periode === "monthly" ? "is-on" : ""} onClick={() => setPeriode("monthly")}>{tp("monthly")}</button>
-          <button className={annuel ? "is-on" : ""} onClick={() => setPeriode("yearly")}>
-            {tp("yearly")}<span className="pv-deux">{tp("save2mo")}</span>
-          </button>
-        </div>
+        {entete}
 
         <div className="pv-grille">
           {offres.map(o => {
@@ -357,7 +449,7 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
         </div>
 
         <div className="pv-remplace-mobile">
-          <Remplace variante={variante} prix={prixStudio} fmt={fmt} />
+          <Fusion prix={prixStudio} fmt={fmt} />
         </div>
 
         <p className="pv-rassure">
@@ -366,10 +458,10 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
       </div>
 
       {apercu && (
-        <div className="rt-choix" role="group" aria-label="Variante">
-          <span className="rt-choix-lib">Variante</span>
-          {VARIANTES.map(x => (
-            <button key={x.cle} type="button" className={variante === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
+        <div className="pv-choix" role="group" aria-label="Disposition du titre">
+          <span className="pv-choix-lib">Titre</span>
+          {TITRES.map(x => (
+            <button key={x.cle} type="button" className={titre === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
               {x.nom}
             </button>
           ))}
