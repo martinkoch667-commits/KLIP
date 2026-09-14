@@ -125,13 +125,13 @@ function OptionsPolices({ horsCatalogue, importees }: { horsCatalogue: string[];
 const CSS = `
   /* Cette page est plus large que les autres : elle montre une grille, pas une
      question. Le socle reste le même, seule la colonne s'élargit. */
-  /* Cartes blanches à ombre violette ; au survol la carte est SÉLECTIONNÉE,
+  /* Cartes blanches à ombre verte ; au survol la carte est SÉLECTIONNÉE,
      cadre et poignées, comme un calque qu'on s'apprête à modifier. */
   .ch-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:clamp(22px,3.4vh,32px);}
   .ch-carte{position:relative;display:flex;flex-direction:column;text-align:left;
     background:var(--carte);border:none;border-radius:20px;padding:16px;cursor:pointer;
     min-height:152px;font:inherit;outline:2px solid transparent;outline-offset:4px;
-    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--vio-ombre);transition:outline-color .15s,transform .15s;}
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--ombre);transition:outline-color .15s,transform .15s;}
   .ch-carte:hover{outline-color:var(--vio);}
   .ch-carte:hover::after{content:"";position:absolute;inset:-11.5px;pointer-events:none;
     background:
@@ -146,7 +146,7 @@ const CSS = `
   .ch-carte:hover .ch-crayon{opacity:1;}
   .ch-crayon{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:8px;
     background:var(--vio);color:#fff;display:grid;place-items:center;opacity:0;transition:opacity .15s;
-    box-shadow:0 6px 14px -6px var(--vio-ombre);}
+    box-shadow:0 6px 14px -6px var(--ombre);}
   .ch-nom{margin-top:auto;padding-top:12px;font-family:var(--sans);font-size:12px;
     font-weight:700;color:var(--ink-3);}
   .ch-vide{flex:1;display:flex;align-items:center;font-family:var(--sans);font-size:13px;color:var(--ink-3);}

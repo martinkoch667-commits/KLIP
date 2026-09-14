@@ -4,10 +4,14 @@
  *
  * LA DIRECTION ARTISTIQUE est celle de la page d'offre et de sa carte
  * « Curseurs », étendue au parcours entier à la demande de Martin (2026-09-14) :
- * fond clair sous un halo violet, titres en casse normale au léger relief, mot
+ * fond clair sous un halo VERT, titres en casse normale au léger relief, mot
  * clé SÉLECTIONNÉ comme dans l'éditeur (cadre violet, poignées carrées),
- * étiquettes aux coins arrondis avec liseré, cartes blanches à ombre violette,
- * curseurs nommés. Le vert leaf reste la couleur de l'action.
+ * étiquettes aux coins arrondis avec liseré, cartes blanches à ombre verte,
+ * curseurs nommés.
+ *
+ * LE VERT EST LA COULEUR DE KLIP, le violet n'est qu'un accent : celui de la
+ * sélection dans l'éditeur, comme sur la landing. Une première version peignait
+ * les halos en violet ; Martin l'a rappelé à l'ordre.
  *
  * CE QUI A ÉTÉ RETIRÉ, et pourquoi. La première version empilait un fond
  * dégradé sombre, un fil d'étapes, un sur-titre et un paragraphe d'explication
@@ -59,7 +63,7 @@ export const ONB_CSS = `
   .ob{
     --fond:#F4F5F1; --carte:#FFFFFF; --creux:#EFF0EB;
     --ink:#10130B; --ink-2:#50544A; --ink-3:#8A8D7D;
-    --vio:#6656D9; --vio-ombre:rgba(52,36,150,.3);
+    --vio:#6656D9; --ombre:rgba(12,49,35,.28);
     --leaf:#BDF2A0; --leaf-ink:#1E3317;
     --heavy:'Archivo', system-ui, sans-serif;
     /* Anciens noms, encore lus par les écrans (charte, étapes d'analyse). */
@@ -69,13 +73,13 @@ export const ONB_CSS = `
        lignes. Avec place-items, deux enfants se partagent la hauteur. */
     display:grid;align-content:center;justify-items:center;gap:clamp(18px,3vh,26px);
     padding:clamp(80px,13vh,112px) clamp(18px,5vw,28px) clamp(40px,8vh,72px);}
-  /* Le halo violet en haut de page, qui s'éteint avant le titre : violet
-     profond sous le logo, lavande ensuite, puis le fond. Même dégradé que la
-     carte Curseurs, à l'échelle de l'écran. */
+  /* Le halo vert en haut de page, qui s'éteint avant le titre : forest sous le
+     logo, menthe ensuite, puis le fond. Même dégradé que la carte Curseurs, à
+     l'échelle de l'écran. */
   .ob::before{content:"";position:absolute;left:0;right:0;top:0;height:clamp(240px,40vh,420px);z-index:0;pointer-events:none;
     background:
-      radial-gradient(60% 70% at 50% -22%,#2F22A8 0%,#5646D6 34%,transparent 72%),
-      linear-gradient(180deg,#9D90FF 0%,#C9C1FF 38%,rgba(228,224,255,.6) 66%,transparent 100%);}
+      radial-gradient(60% 70% at 50% -22%,#072117 0%,#13603F 36%,transparent 72%),
+      linear-gradient(180deg,#2FBF84 0%,#9BE3B5 38%,rgba(217,248,199,.6) 66%,transparent 100%);}
   /* Positionnés SANS z-index : ils passent devant le halo par l'ordre du
      document. Un z-index ici créait un contexte d'empilement par bloc, et la
      modale, rangée dans le contenu, restait sous la zone des boutons. */
@@ -85,7 +89,7 @@ export const ONB_CSS = `
      élément de grille et le contenu se centrait dans la moitié basse. */
   .ob > .ob-marque{position:absolute;top:clamp(20px,3.4vh,36px);left:50%;transform:translateX(-50%);z-index:2;line-height:0;}
   .ob-marque img{height:clamp(32px,4.2vh,38px);width:clamp(32px,4.2vh,38px);border-radius:11px;display:block;
-    box-shadow:0 0 0 3px rgba(255,255,255,.35),0 10px 22px -10px rgba(20,10,80,.6);}
+    box-shadow:0 0 0 3px rgba(255,255,255,.35),0 10px 22px -10px rgba(7,33,23,.6);}
   /* ob-corps est le conteneur, ob-in le champ : les deux noms ne doivent plus
      jamais se croiser (ils se cumulaient quand le conteneur s'appelait ob-in). */
   .ob-corps{width:100%;max-width:var(--ob-w,440px);text-align:center;}
@@ -147,7 +151,7 @@ export const ONB_CSS = `
   .ob-input{flex:1;min-width:0;min-height:56px;padding:0 20px;border-radius:16px;border:none;
     background:var(--carte);color:var(--ink);outline:none;text-align:center;
     font-family:var(--sans);font-size:16px;font-weight:600;
-    box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.08),0 16px 32px -24px var(--vio-ombre);transition:box-shadow .16s,outline-color .16s;}
+    box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.08),0 16px 32px -24px var(--ombre);transition:box-shadow .16s,outline-color .16s;}
   .ob-input::placeholder{color:var(--ink-3);font-weight:500;}
   /* Le champ en cours de saisie est « sélectionné » : cadre violet décalé,
      comme un calque dans l'éditeur, plutôt qu'un anneau de formulaire. */
@@ -159,16 +163,16 @@ export const ONB_CSS = `
   .ob-chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;}
   .ob-chip{position:relative;min-height:46px;padding:11px 17px;border-radius:13px;border:none;cursor:pointer;
     font-family:var(--sans);font-size:15px;font-weight:700;color:var(--ink-2);background:var(--carte);
-    box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.08),0 10px 22px -18px var(--vio-ombre);
+    box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.08),0 10px 22px -18px var(--ombre);
     transition:background .13s,color .13s,box-shadow .13s;}
-  .ob-chip:hover{color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.2),0 10px 22px -18px var(--vio-ombre);}
+  .ob-chip:hover{color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.2),0 10px 22px -18px var(--ombre);}
   .ob-chip.is-on{background:#DDF8CF;color:#2E6A1D;box-shadow:inset 0 0 0 1.5px #A6E68A,0 12px 24px -16px rgba(120,190,90,.55);}
   /* Blocs pour les listes décrites. Choisi : SÉLECTIONNÉ, cadre et poignées. */
   .ob-blocs{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .ob-bloc{position:relative;border:none;border-radius:16px;padding:15px 14px;text-align:center;cursor:pointer;
-    background:var(--carte);box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.07),0 14px 28px -22px var(--vio-ombre);
+    background:var(--carte);box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.07),0 14px 28px -22px var(--ombre);
     transition:box-shadow .14s;}
-  .ob-bloc:hover{box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.18),0 14px 28px -22px var(--vio-ombre);}
+  .ob-bloc:hover{box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.18),0 14px 28px -22px var(--ombre);}
   .ob-bloc.is-on{outline:2px solid var(--vio);outline-offset:4px;}
   .ob-bloc.is-on::after{content:"";position:absolute;inset:-11.5px;pointer-events:none;${POIGNEES}}
   .ob-bloc-l{font-family:var(--sans);font-weight:800;font-size:15px;color:var(--ink);}
@@ -180,7 +184,7 @@ export const ONB_CSS = `
   .ob-bloc .ob-auto{position:absolute;top:8px;right:8px;margin:0;}
 
   .ob-saisie{position:relative;background:var(--carte);border-radius:20px;padding:15px 16px;margin-bottom:12px;
-    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--vio-ombre);}
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--ombre);}
   .ob-saisie .ob-auto{position:absolute;top:15px;right:17px;margin:0;}
   .ob-saisie-l{display:block;font-family:var(--sans);font-size:12.5px;font-weight:700;color:var(--ink-3);margin-bottom:8px;}
   .ob-in{width:100%;box-sizing:border-box;min-height:48px;padding:12px 15px;border-radius:12px;
@@ -203,15 +207,15 @@ export const ONB_CSS = `
 
   /* ── Étapes de l'analyse du site ────────────────────────────────────── */
   .ob .wsx-steps{background:var(--carte);border-radius:20px;padding:18px 20px;text-align:left;
-    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--vio-ombre);}
-  .ob .wsx-step.is-now .wsx-step-dot{background:var(--vio);box-shadow:0 0 0 5px rgba(102,86,217,.22);}
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--ombre);}
+  .ob .wsx-step.is-now .wsx-step-dot{background:var(--leaf);box-shadow:0 0 0 5px rgba(189,242,160,.4);}
 
   /* ── Modale : carte blanche coiffée du halo ─────────────────────────── */
   .ob-mod-bg{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
-    padding:20px;background:rgba(20,16,50,.42);animation:obFond .16s ease-out;}
+    padding:20px;background:rgba(7,20,14,.46);animation:obFond .16s ease-out;}
   .ob-mod{width:100%;max-width:440px;border-radius:28px;padding:clamp(24px,6vw,32px);text-align:center;
-    background:radial-gradient(90% 34% at 50% -8%,rgba(102,86,217,.32),transparent 72%),#fff;
-    box-shadow:0 30px 70px -24px rgba(20,10,80,.45);
+    background:radial-gradient(90% 34% at 50% -8%,rgba(31,168,120,.3),transparent 72%),#fff;
+    box-shadow:0 30px 70px -24px rgba(7,33,23,.45);
     animation:obMonte .2s cubic-bezier(.16,1,.3,1);max-height:88dvh;overflow-y:auto;}
   @keyframes obFond{from{opacity:0}to{opacity:1}}
   @keyframes obMonte{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}

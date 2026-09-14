@@ -8,8 +8,9 @@
  * cadre de sélection, un titre en casse normale et une phrase grise dessous.
  * Parmi trois propositions (Curseurs, Orbite, Dossier), il a gardé Curseurs le
  * 2026-09-14 : les outils deviennent des collaborateurs qui travaillent tous
- * sur le même document, halo violet, la couleur de sélection de l'éditeur. Il a
- * ensuite demandé ce style pour toute la page d'offre.
+ * sur le même document. Il a ensuite demandé ce style pour toute la page, puis
+ * rappelé que la couleur de Klip est le VERT : le halo est vert, le violet ne
+ * reste que sur la sélection.
  *
  * TOUT EST EN UNITÉS DE CONTENEUR (cqw). La carte fait 380 px en desktop et
  * 335 px en mobile : en pixels fixes, le titre de la fenêtre débordait sur
@@ -137,15 +138,15 @@ export const CARTE_CSS = `
   .fx-halo{position:absolute;inset:0;pointer-events:none;
     -webkit-mask-image:linear-gradient(to bottom,#000 30%,transparent 74%);mask-image:linear-gradient(to bottom,#000 30%,transparent 74%);}
   .fx-halo{background:
-    radial-gradient(70% 55% at 55% -8%,#2F22A8 0%,#5646D6 38%,transparent 72%),
-    linear-gradient(90deg,#8C7DFF 0%,#B7ADFF 14%,transparent 30%),
-    linear-gradient(180deg,#9D90FF 0%,#D9D3FF 40%,transparent 70%);}
+    radial-gradient(70% 55% at 55% -8%,#072117 0%,#13603F 40%,transparent 72%),
+    linear-gradient(90deg,#2FBF84 0%,#8BE3B5 14%,transparent 30%),
+    linear-gradient(180deg,#3DC98E 0%,#C9F3DC 40%,transparent 70%);}
   /* La fenêtre, décalée vers la droite et coupée par le bord de la carte, avec
      son liseré de verre sur le haut et la gauche. */
   .fx-cadre{position:relative;margin:10.5cqw 0 0 9cqw;padding:2.4cqw 0 0 2.4cqw;border-radius:6cqw 0 0 0;
     background:rgba(255,255,255,.3);box-shadow:inset 1px 1px 0 rgba(255,255,255,.45);
     -webkit-mask-image:linear-gradient(to bottom,#000 62%,transparent 100%);mask-image:linear-gradient(to bottom,#000 62%,transparent 100%);}
-  .fx-fenetre{position:relative;overflow:hidden;border-radius:3.8cqw 0 0 0;background:#F2F4F7;}
+  .fx-fenetre{position:relative;overflow:hidden;border-radius:3.8cqw 0 0 0;background:#F3F5F1;}
   .fx-barre{display:flex;align-items:center;gap:1.6cqw;height:8.4cqw;padding:0 3.2cqw;background:rgba(255,255,255,.75);}
   .fx-barre i{width:2.7cqw;height:2.7cqw;border-radius:50%;flex:none;}
   .fx-url{margin-left:auto;margin-right:7cqw;display:inline-flex;align-items:center;gap:1.2cqw;
@@ -154,7 +155,7 @@ export const CARTE_CSS = `
   .fx-scene{position:relative;height:56cqw;}
   /* La lueur colorée floue au bas de la fenêtre. */
   .fx-lueur{position:absolute;left:12%;right:0;bottom:-14cqw;height:30cqw;border-radius:50%;filter:blur(8cqw);opacity:.7;pointer-events:none;}
-  .fx-lueur{background:#9C8CFF;}
+  .fx-lueur{background:#6FDCA6;}
 
   .fx-texte{position:relative;margin-top:-4cqw;padding:0 7cqw 7.5cqw;text-align:center;}
   .fx-h{margin:0;font-family:var(--sans);font-weight:650;font-size:6cqw;line-height:1.15;letter-spacing:-.02em;color:var(--ink);text-wrap:balance;}

@@ -3,9 +3,10 @@
 /* Page d'offre du parcours d'essai.
  *
  * LE STYLE est celui de la carte « Curseurs », étendu à toute la page à la
- * demande de Martin (2026-09-14) : halo violet, verre dépoli, cadres de
- * sélection à poignées carrées, curseurs nommés, ombres douces teintées de
- * violet, étiquettes aux coins arrondis avec liseré. C'est le vocabulaire de
+ * demande de Martin (2026-09-14) : halo, verre dépoli, cadres de sélection à
+ * poignées carrées, curseurs nommés, ombres douces, étiquettes aux coins
+ * arrondis avec liseré. Le halo et les ombres sont VERTS, la couleur de Klip ;
+ * le violet ne reste que sur la sélection, comme sur la landing. C'est le vocabulaire de
  * l'éditeur : la page montre l'outil en même temps qu'elle vend l'offre.
  *
  * LA COMPOSITION reste celle du croquis de Martin : l'écran coupé par une
@@ -65,25 +66,25 @@ const CSS = `
     --line:rgba(16,19,11,.14); --line-2:rgba(16,19,11,.08);
     --cream:#F1F0E5; --cream-2:rgba(241,240,229,.66); --cream-3:rgba(241,240,229,.36);
     --leaf:#BDF2A0; --leaf-ink:#1E3317;
-    --vio:#6656D9; --vio-ombre:rgba(52,36,150,.38);
+    --vio:#6656D9; --ombre:rgba(12,49,35,.34);
     --oaks-x:'oaks-expanded', Georgia, serif;
     --heavy:'Archivo', system-ui, sans-serif;
     --sans:'early-sans-variable','Hanken Grotesk', system-ui, sans-serif;
     position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;
-    /* Une lueur lavande très légère derrière le titre, écho du halo. */
-    background:radial-gradient(38% 34% at 0% 0%,rgba(157,144,255,.16),transparent 70%),var(--fond);
+    /* Une lueur menthe très légère derrière le titre, écho du halo. */
+    background:radial-gradient(38% 34% at 0% 0%,rgba(47,215,155,.12),transparent 70%),var(--fond);
     color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;
   }
   .pv *,.pv *::before,.pv *::after{box-sizing:border-box;}
   .pv button{font-family:inherit;cursor:pointer;border:none;background:none;}
 
   /* ── Le halo, coupé en diagonale ─────────────────────────────────────── */
-  /* Violet profond en haut, qui s'éclaircit vers le bas : même dégradé que le
-     halo de la carte, à l'échelle de la page. */
+  /* Forest en haut, qui s'éclaircit en menthe puis en vert tendre vers le bas :
+     même dégradé que le halo de la carte, à l'échelle de la page. */
   .pv-halo{position:absolute;inset:0;overflow:hidden;clip-path:polygon(70% 0, 100% 0, 100% 100%, 60% 100%);
     background:
-      radial-gradient(55% 45% at 78% -8%,#2F22A8 0%,#5646D6 42%,transparent 78%),
-      linear-gradient(180deg,#8C7DFF 0%,#B4A9FF 38%,#DDD8FF 72%,#ECEAFA 100%);}
+      radial-gradient(55% 45% at 78% -8%,#072117 0%,#13603F 42%,transparent 78%),
+      linear-gradient(180deg,#1FA878 0%,#6ED6A0 38%,#C2EDCB 72%,#E6F4E2 100%);}
   /* Grille DROITE de cases en verre, une colonne sur deux décalée d'une demi-
      case : inclinée, elle jurait avec les cadres et fenêtres bien d'aplomb du
      reste de la page. Pas de hauteur fixe sur la grille, sinon les rangées
@@ -91,7 +92,7 @@ const CSS = `
   .pv-mur{position:absolute;top:-60px;left:56%;display:grid;grid-template-columns:repeat(4,150px);gap:18px;}
   .pv-case{position:relative;aspect-ratio:4/5;border-radius:18px;overflow:hidden;
     background:linear-gradient(160deg,rgba(255,255,255,.5),rgba(255,255,255,.22));
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 24px 44px -26px var(--vio-ombre);}
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 24px 44px -26px var(--ombre);}
   .pv-case:nth-child(4n+2),.pv-case:nth-child(4n+4){translate:0 50%;}
   .pv-case img{width:100%;height:100%;object-fit:cover;display:block;}
 
@@ -151,7 +152,7 @@ const CSS = `
   /* Sélecteur de période : pastille de verre. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:16px;padding:5px;
     border-radius:999px;background:rgba(255,255,255,.8);
-    box-shadow:inset 0 0 0 1px rgba(16,19,11,.07),0 16px 32px -22px var(--vio-ombre);}
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.07),0 16px 32px -22px var(--ombre);}
   .pv-periode button{padding:8px 13px;border-radius:999px;font-weight:800;font-size:14px;color:var(--ink-2);white-space:nowrap;
     display:inline-flex;align-items:center;gap:8px;transition:background .2s,color .2s;}
   .pv-periode button.is-on{background:var(--ink);color:#fff;}
@@ -164,13 +165,13 @@ const CSS = `
   .pv-grille{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:72px;align-items:stretch;}
   .pv-col{position:relative;display:flex;min-width:0;}
   .pv-col.is-pop{transform:translateY(-14px);}
-  /* Lueur violette floue sous la carte mise en avant, comme au bas des
-     fenêtres de la carte Curseurs. */
+  /* Lueur verte floue sous la carte mise en avant, comme au bas des fenêtres de
+     la carte Curseurs. */
   .pv-col.is-pop::before{content:"";position:absolute;left:8%;right:8%;bottom:-18px;height:60%;border-radius:50%;
-    background:#9C8CFF;filter:blur(34px);opacity:.55;z-index:0;}
+    background:#4FD9A0;filter:blur(34px);opacity:.5;z-index:0;}
   .pv-carte{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;min-width:0;
     background:var(--card);color:var(--ink);border-radius:24px;padding:26px 20px 22px;
-    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 30px 60px -40px var(--vio-ombre);}
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 30px 60px -40px var(--ombre);}
   .pv-carte.is-pop{color:var(--cream);
     background:radial-gradient(120% 70% at 50% -12%,#17402E 0%,var(--forest) 62%);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 40px 80px -40px rgba(7,33,23,.7);}
@@ -193,7 +194,7 @@ const CSS = `
     animation:pv-flotte 3.4s ease-in-out -1.4s infinite alternate;}
   .pv-flag-txt{display:block;padding:5px 12px;border-radius:10px;font-size:13.5px;font-weight:700;white-space:nowrap;
     background:#E6E1FF;color:#4B3BC4;border:1.5px solid #B9AEFF;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 10px 20px -10px var(--vio-ombre);}
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 10px 20px -10px var(--ombre);}
   .pv-flag .pv-fleche{position:absolute;left:-15px;bottom:-15px;fill:#8C7DFF;transform:scaleY(-1);}
 
   .pv-nom{font-family:var(--oaks-x);font-weight:700;text-transform:uppercase;letter-spacing:.015em;
@@ -223,7 +224,7 @@ const CSS = `
     transition:box-shadow .2s,background .2s;white-space:nowrap;}
   /* Préfixés par .pv : la remise à zéro « .pv button » (fond transparent) est
      plus spécifique qu'une classe seule. */
-  .pv .pv-btn-ghost{color:var(--ink);background:#fff;box-shadow:inset 0 0 0 1.6px var(--line),0 10px 20px -16px var(--vio-ombre);}
+  .pv .pv-btn-ghost{color:var(--ink);background:#fff;box-shadow:inset 0 0 0 1.6px var(--line),0 10px 20px -16px var(--ombre);}
   .pv .pv-btn-ghost:hover{box-shadow:inset 0 0 0 2px var(--ink);}
   .pv .pv-btn-leaf{background:var(--leaf);color:var(--leaf-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 16px 32px -16px rgba(120,190,90,.55);}
   .pv .pv-btn-leaf:hover{background:#C9F5B2;}
@@ -245,8 +246,8 @@ const CSS = `
     .pv-halo{position:relative;inset:auto;height:30vh;min-height:210px;max-height:300px;
       clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);
       background:
-        radial-gradient(70% 70% at 60% -15%,#2F22A8 0%,#5646D6 45%,transparent 80%),
-        linear-gradient(180deg,#8C7DFF 0%,#B4A9FF 60%,#CFC8FF 100%);}
+        radial-gradient(70% 70% at 60% -15%,#072117 0%,#13603F 45%,transparent 80%),
+        linear-gradient(180deg,#1FA878 0%,#6ED6A0 60%,#A6E3BC 100%);}
     .pv-mur{top:-34px;left:50%;translate:-50% 0;grid-template-columns:repeat(4,96px);gap:12px;}
     .pv-case{border-radius:14px;}
     .pv-remplace-large{display:none;}
