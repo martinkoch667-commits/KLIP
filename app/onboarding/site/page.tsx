@@ -13,7 +13,7 @@
  * à une lecture qui n'a pas eu lieu.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft, nomDepuisUrl, type OnbDraft } from "@/lib/onboardingDraft";
@@ -32,9 +32,30 @@ export default function SitePage() {
   const [phase, setPhase] = useState<"ask" | "searching">("ask");
   const [etape, setEtape] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
+  const lance = useRef(false);
 
-  async function analyser() {
-    const url = site.trim();
+  /* Arrivée depuis le hero de la landing (`?site=`) : l'adresse est déjà
+     saisie, on lance l'analyse sans redemander. L'adresse quitte ensuite la
+     barre, sinon un rechargement relancerait tout. */
+  useEffect(() => {
+    if (lance.current) return;
+    const depuisLanding = new URLSearchParams(location.search).get("site");
+    if (!depuisLanding) return;
+    lance.current = true;
+    history.replaceState(null, "", location.pathname);
+    setSite(depuisLanding);
+    void analyser(depuisLanding);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Venu de la landing, on n'est pas passé par la connexion Instagram : elle
+     vient après l'analyse. Sinon, direction le questionnaire. */
+  function suite() {
+    return lireDraft()?.igConnected === undefined ? "/onboarding/connexion" : "/onboarding/questionnaire";
+  }
+
+  async function analyser(adresse?: string) {
+    const url = (adresse ?? site).trim();
     if (!url) return;
     setErreur(null);
     setPhase("searching");
@@ -87,13 +108,15 @@ export default function SitePage() {
 
     clearInterval(ticker);
     setEtape(ETAPES.length);
+    const apres = suite();
     ecrireDraft({ ...draft, igConnected: lireDraft()?.igConnected });
-    setTimeout(() => router.push("/onboarding/questionnaire"), 450);
+    setTimeout(() => router.push(apres), 450);
   }
 
   function aLaMain() {
+    const apres = suite();
     ecrireDraft({ source: "manuel", prefilled: [], igConnected: lireDraft()?.igConnected });
-    router.push("/onboarding/questionnaire");
+    router.push(apres);
   }
 
   /* Le champ et ses deux lignes de service forment la zone d'action : sur

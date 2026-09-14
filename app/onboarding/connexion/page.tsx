@@ -46,17 +46,15 @@ export default function ConnexionPage() {
   const router = useRouter();
   const [avertit, setAvertit] = useState(false);
 
-  function relier() {
+  /* Arrivée depuis le hero de la landing : le site est déjà lu (brouillon
+     présent), on file au questionnaire au lieu de redemander l'adresse. */
+  function suivant(igConnected: boolean) {
     const d = lireDraft();
-    ecrireDraft({ ...(d ?? { source: "manuel", prefilled: [] }), igConnected: true });
-    router.push("/onboarding/site");
+    ecrireDraft({ ...(d ?? { source: "manuel", prefilled: [] }), igConnected });
+    router.push(d ? "/onboarding/questionnaire" : "/onboarding/site");
   }
-
-  function passer() {
-    const d = lireDraft();
-    ecrireDraft({ ...(d ?? { source: "manuel", prefilled: [] }), igConnected: false });
-    router.push("/onboarding/site");
-  }
+  const relier = () => suivant(true);
+  const passer = () => suivant(false);
 
   return (
     <OnboardingShell chemin="connexion" intro={

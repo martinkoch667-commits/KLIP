@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import InscriptionOverlay, { ouvrirCompte, type ModeCompte } from '@/components/InscriptionOverlay';
+import CtaSiteHero from '@/components/CtaSiteHero';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
@@ -765,8 +766,11 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
             </div>
           </div>
         ) : (
-          <div className="h-intro hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
-            <Link href="/register" onClick={versCompte('inscription')} className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+          <div className="h-intro hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', alignItems: 'center', marginTop: 34, flexWrap: 'wrap' }}>
+            {/* On demande le site plutôt qu'« Essayer gratuitement » : l'adresse
+               lance l'analyse du parcours d'essai. Seul le CTA du hero change,
+               celui de la nav ouvre toujours l'inscription. */}
+            <CtaSiteHero />
             <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
           </div>
         )}
