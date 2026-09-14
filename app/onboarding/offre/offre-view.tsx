@@ -7,7 +7,8 @@
  * la partie sombre. Sous 1100 px la diagonale ne tient plus : on empile.
  *
  * « KLIP REMPLACE TOUT ÇA » est la carte Fusion (remplace.tsx), posée sur la
- * zone sombre en desktop et sous les cartes en mobile.
+ * zone sombre en desktop. En mobile elle ouvre la page, à cheval sur le bas du
+ * bandeau : c'est l'argument qu'on veut lire avant les prix, pas après.
  *
  * LE TITRE est posé côte à côte avec le texte et le choix de période (retenu
  * par Martin parmi quatre dispositions, le 2026-09-14) : le titre à gauche sur
@@ -208,7 +209,10 @@ const CSS = `
       clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);}
     .pv-mur{top:-40%;left:-20%;width:140%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
     .pv-remplace-large{display:none;}
-    .pv-remplace-mobile{display:block;width:100%;max-width:420px;margin:48px auto 24px;text-align:left;}
+    /* En tête de page, remontée de 84 px sur le bas du bandeau sombre : posée
+       sous les cartes, on ne la voyait qu'après avoir fait défiler les trois
+       offres. Martin la veut avant les prix. */
+    .pv-remplace-mobile{display:block;position:relative;width:100%;max-width:420px;margin:-84px auto 36px;text-align:left;}
     .pv-marque{top:18px;left:20px;}
     .pv-marque img{box-shadow:0 4px 14px rgba(0,0,0,.35);}
     .pv-clair{width:100%;max-width:none;min-height:0;align-items:center;text-align:center;
@@ -327,6 +331,10 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
       <Link href="/" className="pv-marque"><img src="/icon-192.png" alt="Klip" /></Link>
 
       <div className="pv-clair">
+        <div className="pv-remplace-mobile">
+          <Fusion prix={prixStudio} fmt={fmt} />
+        </div>
+
         <div className="pv-tete">
           <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
           <div className="pv-tete-droite">
@@ -378,10 +386,6 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
               </div>
             );
           })}
-        </div>
-
-        <div className="pv-remplace-mobile">
-          <Fusion prix={prixStudio} fmt={fmt} />
         </div>
 
         <p className="pv-rassure">
