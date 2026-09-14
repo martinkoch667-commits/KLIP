@@ -22,8 +22,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import OnboardingShell from "@/components/OnboardingShell";
-import { Sticker } from "@/components/Stickers";
+import OnboardingShell, { MotChoisi, CurseurNomme } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft } from "@/lib/onboardingDraft";
 
 function IcInstagram() {
@@ -80,19 +79,22 @@ export default function ConnexionPage() {
           dire à quoi elle sert : on comprenait qu'on nous regardait, pas ce
           qu'on allait recevoir. */}
       <h1 className="ob-h1">
-        Vos posts, à&nbsp;votre <span className="acc-hl">image</span>
+        Vos posts, à&nbsp;votre <MotChoisi>image</MotChoisi>
       </h1>
       <p className="ob-sub">
         Vos couleurs, vos polices, votre mise en page : on les reprend pour composer vos visuels.
       </p>
 
-      {/* Le vide entre le titre et l'action n'existe que sur téléphone : on y
-          pose le vocabulaire de la marque plutôt que du blanc. */}
-      <div className="ob-visuel" aria-hidden="true">
-        <Sticker name="sparkle" size={44} float="spin" />
-        <Sticker name="eyes" size={76} float="B" />
-        <Sticker name="heart" size={40} float="A" style={{ ["--r" as string]: "-10deg" }} />
+      {/* Ce que Klip reprend, en curseurs nommés : le vocabulaire de l'éditeur
+          (page d'offre, carte Curseurs) dès le premier écran. Ils remplacent les
+          stickers, qui parlaient une autre langue que le reste du parcours. */}
+      <div className="cx-curseurs">
+        <CurseurNomme nom="Vos couleurs" teinte="violet" style={{ left: "6%", top: "8%", ["--d" as string]: "0s" }} />
+        <CurseurNomme nom="Vos polices" teinte="vert" style={{ left: "52%", top: "0%", ["--d" as string]: "-1.3s" }} />
+        <CurseurNomme nom="Votre mise en page" teinte="ambre" style={{ left: "24%", top: "52%", ["--d" as string]: "-2.2s" }} />
       </div>
+      <style>{`.cx-curseurs{position:relative;height:118px;max-width:360px;margin:6px auto 0;}
+        @media(max-width:639px){.cx-curseurs{height:128px;margin-top:clamp(18px,5vh,44px);}}`}</style>
 
       {avertit && (
         <div className="ob-mod-bg" onClick={() => setAvertit(false)}>

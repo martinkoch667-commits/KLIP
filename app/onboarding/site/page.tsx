@@ -15,7 +15,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import OnboardingShell from "@/components/OnboardingShell";
+import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft, nomDepuisUrl, type OnbDraft } from "@/lib/onboardingDraft";
 
 const ETAPES = [
@@ -134,14 +134,14 @@ export default function SitePage() {
               la largeur. Un `<br />` écrit pour un écran en casse un autre, et
               ici il séparait « à partir » de « du site ». */}
           <h1 className="ob-h1">
-            On lit votre <span className="acc-hl">site</span>
+            On lit votre <MotChoisi>site</MotChoisi>
           </h1>
           <p className="ob-sub">Vos couleurs et vos polices y sont déjà.</p>
         </>
       ) : (
         <>
-                    <h1 className="ob-h1">
-            <span className="acc-hl">{site.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
+          <h1 className="ob-h1">
+            <MotChoisi>{site.replace(/^https?:\/\//, "").replace(/\/$/, "")}</MotChoisi>
           </h1>
           <p className="ob-sub">Quelques secondes.</p>
           <ol className="wsx-steps">

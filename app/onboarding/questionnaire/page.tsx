@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import OnboardingShell from "@/components/OnboardingShell";
+import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft, type OnbDraft } from "@/lib/onboardingDraft";
 
 const SECTEURS = ["Restaurant", "Café", "Retail", "Mode", "Beauté", "Sport", "Tech", "Autre"];
@@ -36,11 +36,11 @@ type Rep = { secteur: string; ton: string; nom: string; handle: string; descript
    chaque description générée ») : personne n'a besoin de ça pour répondre, et
    c'est ce qui donnait le ton de notice. */
 const TITRES: { titre: React.ReactNode; sub: string }[] = [
-  { titre: <>Vous faites <span className="acc-hl">quoi</span> ?</>, sub: "Choisissez ce qui s'en rapproche le plus." },
-  { titre: <>Vous parlez <span className="acc-hl">comment</span> ?</>, sub: "C'est le ton de vos descriptions." },
-  { titre: <>Votre <span className="acc-hl">nom</span></>, sub: "Il signera vos visuels." },
-  { titre: <>En deux <span className="acc-hl">mots</span></>, sub: "Ce que vous faites, sans soigner le style." },
-  { titre: <>Vous nous avez <span className="acc-hl">connus</span> comment ?</>, sub: "Pour savoir ce qui marche de notre côté." },
+  { titre: <>Vous faites <MotChoisi>quoi</MotChoisi> ?</>, sub: "Choisissez ce qui s'en rapproche le plus." },
+  { titre: <>Vous parlez <MotChoisi>comment</MotChoisi> ?</>, sub: "C'est le ton de vos descriptions." },
+  { titre: <>Votre <MotChoisi>nom</MotChoisi></>, sub: "Il signera vos visuels." },
+  { titre: <>En deux <MotChoisi>mots</MotChoisi></>, sub: "Ce que vous faites, sans soigner le style." },
+  { titre: <>Vous nous avez <MotChoisi>connus</MotChoisi> comment ?</>, sub: "Pour savoir ce qui marche de notre côté." },
 ];
 
 export default function QuestionnairePage() {

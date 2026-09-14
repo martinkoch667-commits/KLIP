@@ -23,7 +23,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ColorPicker from "@/components/ColorPicker";
-import OnboardingShell from "@/components/OnboardingShell";
+import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { FONT_CATALOG, fontCssHrefs } from "@/lib/fontCatalog";
 import { groupFontFiles, registerFontFamily, type FontFamily } from "@/lib/fontFiles";
 import { lireDraft, ecrireDraft, type OnbDraft } from "@/lib/onboardingDraft";
@@ -125,19 +125,33 @@ function OptionsPolices({ horsCatalogue, importees }: { horsCatalogue: string[];
 const CSS = `
   /* Cette page est plus large que les autres : elle montre une grille, pas une
      question. Le socle reste le même, seule la colonne s'élargit. */
-  .ch-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:clamp(20px,3vh,30px);}
+  /* Cartes blanches à ombre violette ; au survol la carte est SÉLECTIONNÉE,
+     cadre et poignées, comme un calque qu'on s'apprête à modifier. */
+  .ch-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:clamp(22px,3.4vh,32px);}
   .ch-carte{position:relative;display:flex;flex-direction:column;text-align:left;
-    background:var(--sunk);border:none;border-radius:20px;padding:16px;cursor:pointer;
-    min-height:152px;font:inherit;transition:background .15s,transform .15s;}
-  .ch-carte:hover{background:var(--btn-soft-2);transform:translateY(-2px);}
+    background:var(--carte);border:none;border-radius:20px;padding:16px;cursor:pointer;
+    min-height:152px;font:inherit;outline:2px solid transparent;outline-offset:4px;
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--vio-ombre);transition:outline-color .15s,transform .15s;}
+  .ch-carte:hover{outline-color:var(--vio);}
+  .ch-carte:hover::after{content:"";position:absolute;inset:-11.5px;pointer-events:none;
+    background:
+      linear-gradient(#fff,#fff) 2px 2px/7px 7px no-repeat,
+      linear-gradient(#fff,#fff) calc(100% - 2px) 2px/7px 7px no-repeat,
+      linear-gradient(#fff,#fff) 2px calc(100% - 2px)/7px 7px no-repeat,
+      linear-gradient(#fff,#fff) calc(100% - 2px) calc(100% - 2px)/7px 7px no-repeat,
+      linear-gradient(var(--vio),var(--vio)) 0 0/11px 11px no-repeat,
+      linear-gradient(var(--vio),var(--vio)) 100% 0/11px 11px no-repeat,
+      linear-gradient(var(--vio),var(--vio)) 0 100%/11px 11px no-repeat,
+      linear-gradient(var(--vio),var(--vio)) 100% 100%/11px 11px no-repeat;}
   .ch-carte:hover .ch-crayon{opacity:1;}
   .ch-crayon{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:8px;
-    background:var(--ink);color:#fff;display:grid;place-items:center;opacity:0;transition:opacity .15s;}
+    background:var(--vio);color:#fff;display:grid;place-items:center;opacity:0;transition:opacity .15s;
+    box-shadow:0 6px 14px -6px var(--vio-ombre);}
   .ch-nom{margin-top:auto;padding-top:12px;font-family:var(--sans);font-size:12px;
     font-weight:700;color:var(--ink-3);}
   .ch-vide{flex:1;display:flex;align-items:center;font-family:var(--sans);font-size:13px;color:var(--ink-3);}
 
-  .ch-logo{flex:1;border-radius:13px;background:#fff;display:grid;place-items:center;padding:12px;overflow:hidden;}
+  .ch-logo{flex:1;border-radius:13px;background:var(--creux);display:grid;place-items:center;padding:12px;overflow:hidden;}
   .ch-logo img{max-width:100%;max-height:100%;object-fit:contain;}
   .ch-typo{flex:1;display:flex;gap:14px;align-items:baseline;}
   .ch-typo-n{display:flex;gap:12px;font-family:var(--sans);font-size:10.5px;color:var(--ink-3);margin-top:6px;}
@@ -148,9 +162,9 @@ const CSS = `
   .ch-txt{flex:1;font-family:var(--sans);font-size:13px;line-height:1.45;color:var(--ink-2);
     display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
   .ch-tags{flex:1;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;}
-  .ch-tag{background:#fff;border-radius:999px;padding:6px 12px;font-family:var(--sans);
+  .ch-tag{background:var(--creux);border-radius:10px;padding:6px 11px;font-family:var(--sans);
     font-size:12.5px;font-weight:700;color:var(--ink-2);}
-  .ch-tag.is-on{background:var(--leaf);color:var(--leaf-ink);}
+  .ch-tag.is-on{background:#DDF8CF;color:#2E6A1D;box-shadow:inset 0 0 0 1.5px #A6E68A;}
 
   /* Réglages dans la modale */
   .ch-lab{display:block;font-family:var(--sans);font-size:12.5px;font-weight:700;
@@ -170,7 +184,7 @@ const CSS = `
   .ch-langue{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:13px;border:none;
     cursor:pointer;background:var(--sunk);font-family:var(--sans);font-size:14px;font-weight:700;
     color:var(--ink);box-shadow:inset 0 0 0 2px transparent;}
-  .ch-langue.is-on{background:var(--leaf);box-shadow:inset 0 0 0 2px var(--leaf-ink);}
+  .ch-langue.is-on{background:#DDF8CF;color:#2E6A1D;box-shadow:inset 0 0 0 1.5px #A6E68A;}
   .ch-fermer{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:10px;
     background:var(--sunk);border:none;cursor:pointer;display:grid;place-items:center;color:var(--ink-2);}
   .ch-fermer:hover{background:var(--btn-soft-2);color:var(--ink);}
@@ -270,7 +284,7 @@ export default function CharePage() {
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       <h1 className="ob-h1">
-        {nom ? <>La charte de <span className="acc-hl">{nom}</span></> : <>Votre <span className="acc-hl">charte</span></>}
+        {nom ? <>La charte de <MotChoisi>{nom}</MotChoisi></> : <>Votre <MotChoisi>charte</MotChoisi></>}
       </h1>
       <p className="ob-sub">
         {igRelie === false
