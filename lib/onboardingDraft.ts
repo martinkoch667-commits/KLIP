@@ -51,6 +51,13 @@ export type OnbDraft = {
   /** Vrai une fois la charte recopiée dans ce client : pas de second passage
    *  si /checkout-success est rechargée. */
   charteEcrite?: boolean;
+  /** Vocabulaire relevé par l'analyse du site, comme dans « Nouveau client ». */
+  wordsToUse?: string[];
+  wordsToAvoid?: string[];
+  /** Logo déjà recopié dans le stockage de Klip, et l'adresse d'où il vient :
+   *  une seconde écriture ne le recopie pas une seconde fois. */
+  logoStocke?: string;
+  logoSource?: string;
 };
 
 const CLE = "klip_onb_draft";

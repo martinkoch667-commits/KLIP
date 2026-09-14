@@ -396,6 +396,11 @@ export default function OffreView({ seatsLeft, offresPayables }: {
         window.location.href = json.url;
         return;
       }
+      // Déjà abonné : pas de seconde caisse, la charte est déjà dans son client.
+      if (res.status === 409 && json?.code === "ALREADY_SUBSCRIBED") {
+        window.location.href = "/dashboard";
+        return;
+      }
       setErreur(json?.error ?? "Le paiement n'a pas pu s'ouvrir. Réessayez dans un instant.");
     } catch {
       setErreur("Le paiement n'a pas pu s'ouvrir. Réessayez dans un instant.");

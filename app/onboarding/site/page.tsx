@@ -113,6 +113,8 @@ export default function SitePage() {
           name: nom, sector: secteur.secteur || undefined, sectorAutre: secteur.autre || undefined,
           tone: ton || undefined, description: d.description,
           colors: couleurs, fonts: d.fonts, logoUrl: d.logoUrl, headline: d.description,
+          wordsToUse: Array.isArray(d.wordsToUse) ? d.wordsToUse : undefined,
+          wordsToAvoid: Array.isArray(d.wordsToAvoid) ? d.wordsToAvoid : undefined,
           prefilled: [
             nettoyerNom(d.name) && "name", secteur.secteur && "sector", ton && "tone", d.description && "description",
             couleurs.length > 0 && "colors", (d.fonts ?? []).length > 0 && "fonts", d.logoUrl && "logo",

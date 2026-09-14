@@ -8,6 +8,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
+import AvisOrdinateur from '@/components/AvisOrdinateur';
 import { Sticker } from '@/components/Stickers';
 import MediaThumb, { pickThumbSource, thumbUrl } from '@/components/MediaThumb';
 
@@ -931,6 +932,8 @@ export default function Dashboard() {
       </div>
 
       <OnboardingChecklist />
+      {/* Sur mobile : Klip est plus à l'aise sur ordinateur. Fermable, une fois. */}
+      <AvisOrdinateur style={{ position: 'fixed', left: 12, right: 12, bottom: 'max(12px, env(safe-area-inset-bottom))', zIndex: 50, boxShadow: '0 12px 30px -12px rgba(16,19,11,.35)' }} />
       <Suspense fallback={null}>
         {/* Nettoie ?welcome=true de l'URL. La modale Claude ne s'ouvre plus
             ici : on ne demande pas de brancher un outil tiers à quelqu'un qui

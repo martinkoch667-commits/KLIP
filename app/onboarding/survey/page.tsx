@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import OnboardingShell from "@/components/OnboardingShell";
+import AvisOrdinateur from "@/components/AvisOrdinateur";
 
 
 export default function SurveyPage() {
@@ -67,6 +68,7 @@ export default function SurveyPage() {
       <>
         <h1 className="ob-h1">{current.q}</h1>
         <p className="ob-sub">{t('questionOf', { step: step + 1, total: QUESTIONS.length })}</p>
+        {step === 0 && <AvisOrdinateur fermable={false} style={{ marginTop: 14 }} />}
       </>
     } bas={
       <div className="ob-pied">

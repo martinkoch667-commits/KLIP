@@ -1,9 +1,11 @@
 /* Écrit le client (workspace) du parcours d'essai à partir du brouillon.
  *
- * Appelé au retour de la caisse Stripe (/checkout-success) : l'abonnement vient
- * d'être synchronisé, donc la limite de clients de l'offre est connue. Avant,
- * rien ne lisait le brouillon après le paiement : la personne avait donné son
- * site, relu sa charte, puis retrouvait une application vide.
+ * Appelé DEUX fois : au clic sur « Générer mes visuels » (fin de la charte,
+ * `force`), puis au retour de la caisse Stripe (/checkout-success) par
+ * sécurité. N'écrire qu'au retour de Stripe laissait le client VIDE dès que ce
+ * retour n'avait pas lieu : compte déjà abonné (la caisse refuse un second
+ * abonnement), paiement abandonné, entrée dans l'app par un autre chemin.
+ * Martin a retrouvé un client sans aucune de ses informations (14/09/2026).
  *
  * Deux cas :
  *  · le client EXISTE déjà (créé à l'étape Instagram/Facebook, qui en a besoin
@@ -58,6 +60,14 @@ function champsCharte(d: OnbDraft, logo: string | null): Record<string, unknown>
     // Relié à l'étape Instagram, le nom du compte est déjà en base : on ne
     // l'écrase pas par un champ vide.
     ...(handle ? { instagram_username: handle } : {}),
+    // Vocabulaire et voix, construits comme dans « Nouveau client ».
+    words_to_use: d.wordsToUse?.length ? d.wordsToUse.join(", ") : null,
+    words_to_avoid: d.wordsToAvoid?.length ? d.wordsToAvoid.join(", ") : null,
+    brand_voice_prompt: [
+      d.tone && `Ton : ${d.tone}`,
+      d.wordsToUse?.length && `Mots à utiliser : ${d.wordsToUse.join(", ")}`,
+      d.wordsToAvoid?.length && `Mots à ne jamais utiliser : ${d.wordsToAvoid.join(", ")}`,
+    ].filter(Boolean).join("\n") || null,
     primary_color: couleurs[0] ?? null,
     secondary_color: couleurs[1] ?? null,
     accent_color: couleurs[2] ?? null,
@@ -86,20 +96,27 @@ async function mettreAJour(supabase: SupabaseClient, id: string, champs: Record<
   return false;
 }
 
-export async function creerClientDepuisBrouillon(supabase: SupabaseClient): Promise<string | null> {
+export async function creerClientDepuisBrouillon(
+  supabase: SupabaseClient,
+  { force = false }: { force?: boolean } = {},
+): Promise<string | null> {
   const d = lireDraft();
   if (!d || d.demo || !d.name?.trim()) return d?.clientId ?? null;
-  if (d.charteEcrite) return d.clientId ?? null;
+  // `force` : la fin de la charte réécrit toujours (une correction a pu suivre).
+  if (d.charteEcrite && !force) return d.clientId ?? null;
 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
 
-  const logo = d.logoUrl ? await recopierLogo(supabase, d.logoUrl, session.user.id) : null;
+  const logo = !d.logoUrl ? null
+    : d.logoStocke && d.logoSource === d.logoUrl ? d.logoStocke
+    : await recopierLogo(supabase, d.logoUrl, session.user.id);
   const champs = champsCharte(d, logo);
+  const traces = logo ? { logoStocke: logo, logoSource: d.logoUrl } : {};
 
   if (d.clientId) {
     const ok = await mettreAJour(supabase, d.clientId, champs);
-    if (ok) ecrireDraft({ ...d, charteEcrite: true });
+    ecrireDraft({ ...d, ...traces, charteEcrite: ok });
     return d.clientId;
   }
 
@@ -114,7 +131,7 @@ export async function creerClientDepuisBrouillon(supabase: SupabaseClient): Prom
       console.error("[client-brouillon] création refusée :", json?.error ?? res.status);
       return null;
     }
-    ecrireDraft({ ...d, clientId: json.workspace.id as string, charteEcrite: true });
+    ecrireDraft({ ...d, ...traces, clientId: json.workspace.id as string, charteEcrite: true });
     return json.workspace.id as string;
   } catch (err) {
     console.error("[client-brouillon] création impossible :", err);

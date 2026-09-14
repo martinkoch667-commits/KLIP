@@ -27,6 +27,8 @@ import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { FONT_CATALOG, fontCssHrefs } from "@/lib/fontCatalog";
 import { groupFontFiles, registerFontFamily, type FontFamily } from "@/lib/fontFiles";
 import { lireDraft, ecrireDraft, type OnbDraft } from "@/lib/onboardingDraft";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { creerClientDepuisBrouillon } from "@/lib/clientDepuisBrouillon";
 
 type Charte = {
   logoUrl: string | null;
@@ -214,6 +216,23 @@ export default function CharePage() {
   /** Polices lues sur le site mais absentes du catalogue (Adobe, maison…). */
   const [policesSite, setPolicesSite] = useState<string[]>([]);
   const [couleursTrouvees, setCouleursTrouvees] = useState(true);
+  const [enregistre, setEnregistre] = useState(false);
+
+  /* La charte part dans le client MAINTENANT, avant l'offre et le paiement :
+     c'est le seul moment où l'on est sûr d'avoir un compte et une charte
+     relue. Sans compte (arrivée directe), l'offre ouvrira l'inscription. */
+  async function generer() {
+    if (enregistre) return;
+    setEnregistre(true);
+    try {
+      const supabase = createClientComponentClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await creerClientDepuisBrouillon(supabase, { force: true });
+    } catch (err) {
+      console.error("[charte] écriture du client impossible :", err);
+    }
+    router.push("/onboarding/offre");
+  }
 
   // Ce que les écrans précédents ont récolté remplace les valeurs de départ.
   // Un champ absent reste vide et le dit : une carte qui affiche une valeur
@@ -309,8 +328,8 @@ export default function CharePage() {
         </p>
       </>
     } bas={
-      <button className="ob-btn ob-btn-leaf" onClick={() => router.push("/onboarding/offre")}>
-        Générer mes visuels
+      <button className="ob-btn ob-btn-leaf" onClick={() => void generer()} disabled={enregistre}>
+        {enregistre ? "Enregistrement de votre charte…" : "Générer mes visuels"}
       </button>
     }>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
