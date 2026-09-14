@@ -114,12 +114,16 @@ const CSS = `
   .pv-h1{margin:0;font-family:var(--heavy);font-weight:800;letter-spacing:-.045em;line-height:1;
     font-size:clamp(42px,4.2vw,64px);color:#1D2019;text-shadow:0 3px 12px rgba(16,19,11,.12);}
   .pv-h1 .pv-l{display:block;white-space:nowrap;}
-  .pv-h1 .pv-l + .pv-l{margin-top:.14em;}
+  /* .26em entre les lignes : le cadre du mot sélectionné déborde de 8 px, et à
+     .14em il venait toucher la ligne du dessus. */
+  .pv-h1 .pv-l + .pv-l{margin-top:.26em;}
   .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;}
   .pv-lead{margin:0;color:var(--ink-2);font-size:15.5px;line-height:1.5;max-width:30ch;text-wrap:pretty;}
 
   /* Le mot sélectionné : cadre violet et poignées carrées de l'éditeur. */
-  .pv-mot{--o:8px;position:relative;display:inline-block;outline:2px solid var(--vio);outline-offset:var(--o);border-radius:2px;}
+  /* margin-left : le décalage du cadre mangeait l'espace, et il collait au mot
+     d'avant. */
+  .pv-mot{--o:8px;position:relative;display:inline-block;margin-left:.14em;outline:2px solid var(--vio);outline-offset:var(--o);border-radius:2px;}
   .pv-mot i{position:absolute;width:11px;height:11px;background:#fff;border:2px solid var(--vio);border-radius:2px;}
   .pv-mot i:nth-of-type(1){top:calc(-1 * var(--o) - 5.5px);left:calc(-1 * var(--o) - 5.5px);}
   .pv-mot i:nth-of-type(2){top:calc(-1 * var(--o) - 5.5px);right:calc(-1 * var(--o) - 5.5px);}
@@ -136,9 +140,12 @@ const CSS = `
   .pv-curseur.is-vert .pv-fleche{fill:#7ED66A;} .pv-curseur.is-vert .pv-etiquette{background:#DDF8CF;color:#2E6A1D;border:1.5px solid #A6E68A;}
   .pv-curseur.is-violet .pv-fleche{fill:#8C7DFF;} .pv-curseur.is-violet .pv-etiquette{background:#E6E1FF;color:#4B3BC4;border:1.5px solid #B9AEFF;}
   @keyframes pv-flotte{from{translate:0 0;}to{translate:4px -5px;}}
-  /* « Vous » au coin bas droit du mot, dans l'espace entre l'en-tête et les
-     cartes : à droite du mot, il tombait sur le choix de période. */
-  .pv-mot .pv-curseur{left:calc(100% + 2px);top:calc(100% + 4px);}
+  /* « Vous » au coin bas GAUCHE du mot, flèche vers le haut à droite, dans
+     l'espace entre l'en-tête et les cartes. À droite du mot il tombait sur le
+     choix de période, au coin bas droit contre l'étiquette de Studio. */
+  .pv-mot .pv-curseur{right:calc(100% + 4px);top:calc(100% + 6px);align-items:flex-end;}
+  .pv-mot .pv-curseur .pv-fleche{transform:scaleX(-1);}
+  .pv-mot .pv-curseur .pv-etiquette{margin:2px 13px 0 0;}
 
   /* Sélecteur de période : pastille de verre. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:16px;padding:5px;
@@ -251,8 +258,11 @@ const CSS = `
     .pv-periode{align-self:flex-start;margin-top:20px;}
     .pv-grille{width:100%;max-width:980px;text-align:left;}
     .pv-rassure{max-width:44ch;}
-    /* À droite du mot : sous le titre, « Vous » tombait sur le texte. */
-    .pv-mot .pv-curseur{left:calc(100% + 14px);top:30%;}
+    /* À droite du mot, à sa hauteur : sous le titre, « Vous » tombait sur le
+       texte. */
+    .pv-mot .pv-curseur{right:auto;left:calc(100% + 12px);top:-6%;align-items:flex-start;}
+    .pv-mot .pv-curseur .pv-fleche{transform:none;}
+    .pv-mot .pv-curseur .pv-etiquette{margin:2px 0 0 13px;}
   }
   /* Trois cartes côte à côte ne tiennent plus : une colonne, comme la landing. */
   @media(max-width:760px){
