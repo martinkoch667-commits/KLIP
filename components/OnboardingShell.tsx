@@ -276,7 +276,9 @@ export const ONB_CSS = `
   .ob-case-url svg{width:11px;height:11px;fill:currentColor;}
 
   /* 1. FENÊTRE : la carte Curseurs. Halo vert en L, fenêtre décalée et coupée
-     par les bords droit et bas, liseré de verre en haut et à gauche. */
+     par les bords droit et bas, liseré de verre en haut et à gauche. Sans le
+     curseur « Vous » posé sur le liseré : sur mobile il cachait les pastilles
+     de la barre, et la case se lit mieux sans. */
   .ob-case.is-fenetre::before{content:"";position:absolute;inset:0;pointer-events:none;
     background:
       linear-gradient(180deg,rgba(255,255,255,0) 26%,#fff 70%),
@@ -292,7 +294,6 @@ export const ONB_CSS = `
      Jamais moins de 14 px à gauche : les poignées d'un bloc sélectionné
      débordent de 11 px et la fenêtre les rognerait. */
   .ob-case.is-fenetre .ob-case-contenu{padding:26px 34px 30px 14px;}
-  .ob-case.is-fenetre .ob-case-vous{display:flex;}
 
   /* 2. SOBRE : la même fenêtre, sans halo ni décalage. Blanche et centrée, le
      seul rappel de marque est le liseré vert sous la barre. */
@@ -317,9 +318,6 @@ export const ONB_CSS = `
   .ob-case-piste{flex:1;height:6px;border-radius:999px;background:#E9EBEE;overflow:hidden;}
   .ob-case-piste span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1FA878,#BDF2A0);}
 
-  /* Le curseur « Vous » de la fenêtre, posé sur le liseré de verre. */
-  .ob-case-vous{display:none;position:absolute;left:6px;top:14px;z-index:3;}
-  .ob-case-vous .ob-curseur{position:static;}
 
   /* Sélecteur de case (aperçu seulement). */
   .ob.a-choix{padding-bottom:84px;}
@@ -409,7 +407,6 @@ export default function OnboardingShell({
       <Link href="/" className="ob-marque"><img src="/icon-192.png" alt="Klip" /></Link>
       <div className="ob-corps a-case">
         <div className={`ob-case is-${caseStyle}`}>
-          <span className="ob-case-vous"><CurseurNomme nom="Vous" teinte="vert" /></span>
           <div className="ob-case-entete">
             <span className="ob-case-etape">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5Z" /><path d="M3 13l9 5 9-5" /></svg>
