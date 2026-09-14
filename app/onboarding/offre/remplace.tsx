@@ -131,7 +131,7 @@ export default function CarteCurseurs(props: Props) {
 
 export const CARTE_CSS = `
   /* ── Le cadre commun ─────────────────────────────────────────────────── */
-  .fx{position:relative;container-type:inline-size;overflow:hidden;border-radius:28px;background:#F4F5F1;
+  .fx{position:relative;container-type:inline-size;overflow:hidden;border-radius:28px;background:#FFFFFF;
     box-shadow:0 0 0 1px rgba(16,19,11,.06),0 40px 80px -36px rgba(16,19,11,.55);}
   /* Le halo en L : fort en haut, il longe le bord gauche puis s'éteint vers le
      bas, pour que le titre se lise sur un fond clair. */
@@ -146,7 +146,7 @@ export const CARTE_CSS = `
   .fx-cadre{position:relative;margin:10.5cqw 0 0 9cqw;padding:2.4cqw 0 0 2.4cqw;border-radius:6cqw 0 0 0;
     background:rgba(255,255,255,.3);box-shadow:inset 1px 1px 0 rgba(255,255,255,.45);
     -webkit-mask-image:linear-gradient(to bottom,#000 62%,transparent 100%);mask-image:linear-gradient(to bottom,#000 62%,transparent 100%);}
-  .fx-fenetre{position:relative;overflow:hidden;border-radius:3.8cqw 0 0 0;background:#F3F5F1;}
+  .fx-fenetre{position:relative;overflow:hidden;border-radius:3.8cqw 0 0 0;background:#F4F5F7;}
   .fx-barre{display:flex;align-items:center;gap:1.6cqw;height:8.4cqw;padding:0 3.2cqw;background:rgba(255,255,255,.75);}
   .fx-barre i{width:2.7cqw;height:2.7cqw;border-radius:50%;flex:none;}
   .fx-url{margin-left:auto;margin-right:7cqw;display:inline-flex;align-items:center;gap:1.2cqw;

@@ -60,7 +60,8 @@ const CSS = `
   /* Jetons de la landing (.v3) pour les cartes de prix, et ceux de la carte
      Curseurs pour le reste (violets, étiquettes). */
   .pv{
-    --fond:#F4F5F1; --card:#FFFFFF; --paper-3:#F1F0E9;
+    /* Fond BLANC pur sous les dégradés, gris neutres : plus de beige. */
+    --fond:#FFFFFF; --card:#FFFFFF; --creux:#F3F4F6;
     --forest:#072117; --forest-2:#0C3123;
     --ink:#10130B; --ink-2:#50544A; --ink-3:#8A8D7D;
     --line:rgba(16,19,11,.14); --line-2:rgba(16,19,11,.08);
@@ -84,7 +85,7 @@ const CSS = `
   .pv-halo{position:absolute;inset:0;overflow:hidden;clip-path:polygon(70% 0, 100% 0, 100% 100%, 60% 100%);
     background:
       radial-gradient(55% 45% at 78% -8%,#072117 0%,#13603F 42%,transparent 78%),
-      linear-gradient(180deg,#1FA878 0%,#6ED6A0 38%,#C2EDCB 72%,#E6F4E2 100%);}
+      linear-gradient(180deg,#1FA878 0%,#6ED6A0 38%,#C2EDCB 72%,#EFF8F1 100%);}
   /* Grille DROITE de cases en verre, une colonne sur deux décalée d'une demi-
      case : inclinée, elle jurait avec les cadres et fenêtres bien d'aplomb du
      reste de la page. Pas de hauteur fixe sur la grille, sinon les rangées
@@ -216,7 +217,7 @@ const CSS = `
   .pv-note{font-size:12px;line-height:1.45;color:var(--ink-3);margin:6px 0 16px;min-height:16px;}
   .pv-carte.is-pop .pv-note{color:var(--cream-3);}
   .pv-chip{display:inline-flex;align-self:flex-start;align-items:center;padding:7px 12px;border-radius:10px;
-    font-weight:700;font-size:12.5px;white-space:nowrap;background:var(--fond);color:var(--ink-2);
+    font-weight:700;font-size:12.5px;white-space:nowrap;background:var(--creux);color:var(--ink-2);
     box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.07);}
   .pv-carte.is-pop .pv-chip{background:rgba(255,255,255,.07);color:var(--cream-2);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.1);}
   .pv-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;

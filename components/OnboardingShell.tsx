@@ -61,13 +61,15 @@ const POIGNEES = `
 
 export const ONB_CSS = `
   .ob{
-    --fond:#F4F5F1; --carte:#FFFFFF; --creux:#EFF0EB;
+    /* Fond BLANC pur sous les dégradés, et des gris neutres : le #F4F5F1 d'avant
+       tirait sur le beige (Martin, 2026-09-14). */
+    --fond:#FFFFFF; --carte:#FFFFFF; --creux:#F3F4F6;
     --ink:#10130B; --ink-2:#50544A; --ink-3:#8A8D7D;
     --vio:#6656D9; --ombre:rgba(12,49,35,.28);
     --leaf:#BDF2A0; --leaf-ink:#1E3317;
     --heavy:'Archivo', system-ui, sans-serif;
     /* Anciens noms, encore lus par les écrans (charte, étapes d'analyse). */
-    --sunk:var(--creux); --btn-soft:#E7E8E2; --btn-soft-2:#E2E3DC;
+    --sunk:var(--creux); --btn-soft:#EDEEF1; --btn-soft-2:#E6E8EC;
     position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;background:var(--fond);color:var(--ink);
     /* align-content (et non place-items) : c'est lui qui centre l'ENSEMBLE des
        lignes. Avec place-items, deux enfants se partagent la hauteur. */
