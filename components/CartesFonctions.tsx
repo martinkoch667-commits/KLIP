@@ -237,7 +237,7 @@ export default function CartesFonctions() {
       <style dangerouslySetInnerHTML={{ __html: CARTE_CSS + CF_CSS }} />
       <div className="cf-grille-cartes">
         <Carte chemin="editeur" titre={t("mainTitle")} texte={t("mainText")}
-          curseurs={<Curseur nom="Vous" teinte="violet" style={{ left: "40%", top: "40cqw" }} />}>
+          curseurs={<Curseur nom="Vous" teinte="violet" style={{ left: "30%", top: "47cqw" }} />}>
           <SceneEditeur />
         </Carte>
         <Carte chemin="montage" titre={t("f5t")} texte={t("f5d")}
