@@ -76,7 +76,10 @@ export const ONB_CSS = `
     background:
       radial-gradient(60% 70% at 50% -22%,#2F22A8 0%,#5646D6 34%,transparent 72%),
       linear-gradient(180deg,#9D90FF 0%,#C9C1FF 38%,rgba(228,224,255,.6) 66%,transparent 100%);}
-  .ob > *{position:relative;z-index:1;}
+  /* Positionnés SANS z-index : ils passent devant le halo par l'ordre du
+     document. Un z-index ici créait un contexte d'empilement par bloc, et la
+     modale, rangée dans le contenu, restait sous la zone des boutons. */
+  .ob > *{position:relative;}
 
   /* C'est le LIEN qui sort du flux, pas seulement l'image : sinon il restait un
      élément de grille et le contenu se centrait dans la moitié basse. */
@@ -91,7 +94,9 @@ export const ONB_CSS = `
 
   /* ── Titres ─────────────────────────────────────────────────────────── */
   /* Casse normale et léger relief, comme le titre du document de la carte. */
-  .ob-h1{font-family:var(--heavy);font-weight:800;text-transform:none;letter-spacing:-.04em;line-height:1.08;
+  /* Interligne 1.2 : le cadre du mot sélectionné déborde de 6 px et ses
+     poignées de 12, à 1.08 il touchait la ligne du dessus. */
+  .ob-h1{font-family:var(--heavy);font-weight:800;text-transform:none;letter-spacing:-.04em;line-height:1.2;
     color:#1D2019;text-shadow:0 3px 12px rgba(16,19,11,.12);
     font-size:clamp(32px,7.4vw,44px);margin:0 0 16px;text-wrap:balance;}
   /* Le mot sélectionné. Marges latérales : le cadre est décalé de 6 px et
