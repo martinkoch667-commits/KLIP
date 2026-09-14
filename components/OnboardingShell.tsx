@@ -78,7 +78,9 @@ export const ONB_CSS = `
   /* Le halo vert en haut de page, qui s'éteint avant le titre : forest sous le
      logo, menthe ensuite, puis le fond. Même dégradé que la carte Curseurs, à
      l'échelle de l'écran. */
-  .ob::before{content:"";position:absolute;left:0;right:0;top:0;height:clamp(240px,40vh,420px);z-index:0;pointer-events:none;
+  /* 60vh et non 40 : plus court, le fondu s'arrêtait net et laissait un trait
+     gris visible sous le sous-titre. */
+  .ob::before{content:"";position:absolute;left:0;right:0;top:0;height:clamp(340px,60vh,620px);z-index:0;pointer-events:none;
     background:
       radial-gradient(60% 70% at 50% -22%,#072117 0%,#13603F 36%,transparent 72%),
       linear-gradient(180deg,#2FBF84 0%,#9BE3B5 38%,rgba(217,248,199,.6) 66%,transparent 100%);}
@@ -175,8 +177,11 @@ export const ONB_CSS = `
     background:var(--carte);box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.07),0 14px 28px -22px var(--ombre);
     transition:box-shadow .14s;}
   .ob-bloc:hover{box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.18),0 14px 28px -22px var(--ombre);}
-  .ob-bloc.is-on{outline:2px solid var(--vio);outline-offset:4px;}
-  .ob-bloc.is-on::after{content:"";position:absolute;inset:-11.5px;pointer-events:none;${POIGNEES}}
+  /* Cadre RECTANGULAIRE autour du bloc arrondi, poignées sur ses coins : c'est
+     la boîte qu'on sélectionne. Un outline suivait l'arrondi et laissait les
+     poignées flotter à côté des coins. */
+  .ob-bloc.is-on::before{content:"";position:absolute;inset:-6px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;}
+  .ob-bloc.is-on::after{content:"";position:absolute;inset:-10.5px;pointer-events:none;${POIGNEES}}
   .ob-bloc-l{font-family:var(--sans);font-weight:800;font-size:15px;color:var(--ink);}
   .ob-bloc-d{font-family:var(--sans);font-size:12.5px;color:var(--ink-3);margin-top:2px;line-height:1.4;}
 

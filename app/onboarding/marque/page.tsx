@@ -130,10 +130,12 @@ const CSS = `
   .ch-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:clamp(22px,3.4vh,32px);}
   .ch-carte{position:relative;display:flex;flex-direction:column;text-align:left;
     background:var(--carte);border:none;border-radius:20px;padding:16px;cursor:pointer;
-    min-height:152px;font:inherit;outline:2px solid transparent;outline-offset:4px;
-    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--ombre);transition:outline-color .15s,transform .15s;}
-  .ch-carte:hover{outline-color:var(--vio);}
-  .ch-carte:hover::after{content:"";position:absolute;inset:-11.5px;pointer-events:none;
+    min-height:152px;font:inherit;
+    box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--ombre);transition:transform .15s;}
+  /* Cadre rectangulaire et poignées sur ses coins, pas un outline qui suivrait
+     l'arrondi de la carte. */
+  .ch-carte:hover::before{content:"";position:absolute;inset:-6px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;}
+  .ch-carte:hover::after{content:"";position:absolute;inset:-10.5px;pointer-events:none;
     background:
       linear-gradient(#fff,#fff) 2px 2px/7px 7px no-repeat,
       linear-gradient(#fff,#fff) calc(100% - 2px) 2px/7px 7px no-repeat,

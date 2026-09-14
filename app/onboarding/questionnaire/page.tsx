@@ -136,7 +136,7 @@ export default function QuestionnairePage() {
               placeholder="Ex : Café Lumière, Studio Nova…" />
           </div>
           <div className="ob-saisie">
-            <span className="ob-saisie-l">Compte Instagram — facultatif</span>
+            <span className="ob-saisie-l">Compte Instagram (facultatif)</span>
             <input className="ob-in" value={r.handle}
               onChange={e => setR({ ...r, handle: e.target.value.replace(/^@/, "") })}
               placeholder="nomdemarque" />
