@@ -198,14 +198,14 @@ function Fusion({ prix, fmt }: Props) {
         <div className="rt-fusion-pile">
           {outils.map((o, i) => (
             <span key={o.nom} className="rt-fusion-case" style={{ ["--i" as string]: i, zIndex: outils.length - i }}>
-              <IconeOutil outil={o} taille={50} />
+              <IconeOutil outil={o} taille={40} />
             </span>
           ))}
         </div>
         <span className="rt-fusion-fleche" aria-hidden="true">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
         </span>
-        <span className="rt-fusion-klip"><IconeKlip taille={72} /></span>
+        <span className="rt-fusion-klip"><IconeKlip taille={64} /></span>
       </div>
       <p className="rt-fusion-h">Six abonnements. <span className="acc-hl">Un seul outil.</span></p>
       <p className="rt-fusion-p">
@@ -221,23 +221,22 @@ function Barres({ prix, fmt }: Props) {
   const outils = useOutils();
   const [ref, vu] = useVu<HTMLDivElement>();
   const economie = Math.max(0, Math.round(TOTAL - prix));
-  // Du plus foncé au plus clair : la barre se lit comme un seul bloc, les logos
-  // au-dessus disent qui est qui. Six couleurs de marque criaient trop fort.
-  const teintes = ["#072117", "#0C3123", "#124732", "#2C5E47", "#557C69", "#86A393"];
+  /* Les deux barres ont la MÊME épaisseur et la même échelle (~95 € = toute la
+     largeur) : c'est la seule façon honnête de comparer deux longueurs. Du plus
+     foncé au plus clair, la pile se lit comme un seul bloc ; les logos dans
+     chaque segment disent qui est qui. Six couleurs de marque criaient trop. */
+  const teintes = ["#072117", "#0C3123", "#124732", "#2C5E47", "#46705C", "#6B8E7C"];
   return (
     <div ref={ref} className={"rt-barres" + (vu ? " is-vu" : "")}>
       <div className="rt-barres-ligne">
-        <span className="rt-barres-lib">Aujourd&apos;hui, 6 abonnements</span>
+        <span className="rt-barres-lib">Aujourd&apos;hui, 6 outils</span>
         <span className="rt-barres-val">~{TOTAL} €/mois</span>
-      </div>
-      <div className="rt-barres-logos">
-        {outils.map(o => (
-          <span key={o.nom} style={{ flex: o.cout }}><IconeOutil outil={o} taille={24} /></span>
-        ))}
       </div>
       <div className="rt-barres-piste">
         {outils.map((o, i) => (
-          <span key={o.nom} className="rt-barres-seg" style={{ flex: o.cout, background: teintes[i] }} />
+          <span key={o.nom} className="rt-barres-seg" style={{ flex: o.cout, background: teintes[i], ["--i" as string]: i }}>
+            <IconeOutil outil={o} taille={24} />
+          </span>
         ))}
       </div>
 
@@ -245,15 +244,15 @@ function Barres({ prix, fmt }: Props) {
         <span className="rt-barres-lib">Avec Klip, tout compris</span>
         <span className="rt-barres-val">{fmt(prix)} €/mois</span>
       </div>
-      <div className="rt-barres-piste is-klip">
-        <span className="rt-barres-seg is-klip" style={{ width: `${Math.max(8, (prix / TOTAL) * 100)}%` }}>
+      <div className="rt-barres-piste">
+        <span className="rt-barres-seg is-klip" style={{ width: `${Math.max(14, (prix / TOTAL) * 100)}%` }}>
           <IconeKlip taille={24} />
         </span>
       </div>
 
       <div className="rt-barres-eco">
         <span className="rt-barres-eco-n">−{economie} €</span>
-        <span className="rt-barres-eco-t">de moins chaque mois</span>
+        <span className="rt-barres-eco-t">de moins chaque mois, pour les mêmes usages</span>
       </div>
     </div>
   );
@@ -327,7 +326,8 @@ export const REMPLACE_CSS = `
   .rt-ticket-klip{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--leaf);color:var(--leaf-ink);}
   .rt-ticket-klip .rt-ticket-points{border-color:rgba(30,51,23,.25);}
   .rt-ticket-prix.is-klip{font-size:15.5px;}
-  .rt-tampon{position:absolute;right:18px;top:92px;display:flex;flex-direction:column;align-items:center;
+  /* Au milieu, sur les pointillés : posé à droite, il cachait le prix de Canva. */
+  .rt-tampon{position:absolute;left:50%;top:44%;translate:-50% -50%;display:flex;flex-direction:column;align-items:center;
     padding:9px 16px 10px;border:3px solid var(--vio);border-radius:12px;color:var(--vio);
     background:rgba(255,254,247,.72);rotate:-12deg;scale:1.6;opacity:0;
     transition:scale .45s cubic-bezier(.2,1.6,.4,1) .5s,opacity .2s .5s;}
@@ -339,14 +339,14 @@ export const REMPLACE_CSS = `
   .rt-fusion{background:var(--card);border-radius:18px;padding:26px 24px 24px;
     box-shadow:0 0 0 1px var(--line-2),0 40px 80px -40px rgba(16,19,11,.45);}
   .rt-fusion-scene{display:flex;align-items:center;justify-content:center;gap:12px;}
-  .rt-fusion-pile{display:flex;align-items:center;padding-left:30px;}
+  .rt-fusion-pile{display:flex;align-items:center;padding-left:14px;}
   /* Les icônes arrivent en éventail puis se resserrent en pile. */
-  .rt-fusion-case{display:inline-flex;margin-left:-30px;border-radius:15px;box-shadow:0 0 0 3px var(--card),0 8px 16px -8px rgba(16,19,11,.4);
-    rotate:calc((var(--i) - 2.5) * 5deg);translate:calc((var(--i) - 2.5) * 12px) 0;opacity:0;
+  .rt-fusion-case{display:inline-flex;margin-left:-14px;border-radius:11px;box-shadow:0 0 0 3px var(--card),0 8px 16px -8px rgba(16,19,11,.4);
+    rotate:calc((var(--i) - 2.5) * 3deg);translate:calc((var(--i) - 2.5) * 14px) 0;opacity:0;
     transition:translate .6s cubic-bezier(.2,.9,.3,1) calc(var(--i) * 70ms),opacity .3s calc(var(--i) * 70ms),rotate .6s calc(var(--i) * 70ms);}
   .rt-fusion.is-vu .rt-fusion-case{opacity:1;translate:0 0;}
   .rt-fusion-fleche{display:inline-flex;color:var(--ink-3);}
-  .rt-fusion-klip{display:inline-flex;border-radius:20px;box-shadow:0 0 0 6px rgba(189,242,160,.55),0 22px 34px -16px rgba(30,51,23,.6);
+  .rt-fusion-klip{display:inline-flex;border-radius:17px;box-shadow:0 0 0 6px rgba(189,242,160,.55),0 22px 34px -16px rgba(30,51,23,.6);
     scale:.6;opacity:0;transition:scale .5s cubic-bezier(.2,1.6,.4,1) .55s,opacity .25s .55s;}
   .rt-fusion.is-vu .rt-fusion-klip{scale:1;opacity:1;}
   .rt-fusion-h{font-family:var(--heavy);font-weight:800;text-transform:uppercase;letter-spacing:-.02em;
@@ -355,25 +355,21 @@ export const REMPLACE_CSS = `
   .rt-fusion-p b{color:var(--ink);}
 
   /* ── 4. Barres ──────────────────────────────────────────────────────── */
-  .rt-barres{position:relative;background:var(--card);border-radius:18px;padding:22px 22px 24px;
+  .rt-barres{background:var(--card);border-radius:18px;padding:22px 22px 0;overflow:hidden;
     box-shadow:0 0 0 1px var(--line-2),0 40px 80px -40px rgba(16,19,11,.45);}
   .rt-barres-ligne{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
-  .rt-barres-ligne.is-klip{margin-top:22px;}
+  .rt-barres-ligne.is-klip{margin-top:20px;}
   .rt-barres-lib{font-weight:700;font-size:13.5px;color:var(--ink-2);}
   .rt-barres-val{font-family:var(--heavy);font-weight:800;font-size:19px;letter-spacing:-.02em;white-space:nowrap;}
-  .rt-barres-logos{display:flex;gap:3px;margin-top:12px;}
-  .rt-barres-logos>span{display:flex;justify-content:center;min-width:0;}
-  .rt-barres-piste{display:flex;gap:3px;height:16px;margin-top:6px;border-radius:999px;overflow:hidden;}
-  .rt-barres-seg{display:block;transform-origin:left center;transform:scaleX(0);transition:transform .7s cubic-bezier(.2,.9,.3,1);}
+  .rt-barres-piste{display:flex;gap:3px;height:42px;margin-top:9px;border-radius:12px;overflow:hidden;background:#F1F0E9;}
+  .rt-barres-seg{display:flex;align-items:center;justify-content:center;min-width:0;
+    transform-origin:left center;transform:scaleX(0);transition:transform .6s cubic-bezier(.2,.9,.3,1) calc(var(--i,0) * 60ms);}
   .rt-barres.is-vu .rt-barres-seg{transform:scaleX(1);}
-  .rt-barres-piste.is-klip{height:40px;margin-top:10px;background:#F1F0E9;border-radius:12px;}
-  .rt-barres-seg.is-klip{display:flex;align-items:center;justify-content:flex-end;padding:0 8px;border-radius:12px;
-    background:var(--leaf);transition-delay:.35s;}
-  .rt-barres-eco{position:absolute;right:16px;bottom:-20px;display:flex;flex-direction:column;align-items:flex-start;
-    padding:9px 14px 10px;border-radius:14px;background:var(--forest);color:var(--cream);rotate:-3deg;
-    box-shadow:0 18px 30px -14px rgba(7,33,23,.6);}
-  .rt-barres-eco-n{font-family:var(--heavy);font-weight:800;font-size:24px;letter-spacing:-.03em;line-height:1;color:var(--leaf);}
-  .rt-barres-eco-t{font-size:11.5px;font-weight:700;margin-top:3px;color:var(--cream-2);}
+  .rt-barres-seg .rt-ic{box-shadow:0 2px 6px rgba(0,0,0,.25);}
+  .rt-barres-seg.is-klip{justify-content:flex-end;padding:0 9px;border-radius:12px;background:var(--leaf);transition-delay:.45s;}
+  .rt-barres-eco{display:flex;align-items:center;gap:12px;margin:22px -22px 0;padding:14px 22px;background:var(--forest);color:var(--cream);}
+  .rt-barres-eco-n{flex:none;font-family:var(--heavy);font-weight:800;font-size:26px;letter-spacing:-.03em;line-height:1;color:var(--leaf);}
+  .rt-barres-eco-t{font-size:13px;font-weight:700;line-height:1.3;color:var(--cream-2);}
 
   /* ── Sélecteur de variante (aperçu seulement) ───────────────────────── */
   .rt-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
