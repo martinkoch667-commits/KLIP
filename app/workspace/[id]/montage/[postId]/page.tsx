@@ -21,7 +21,7 @@ import {
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
 import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from "./fonts";
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
-import { apercu as srcApercu, assurerProxys, recenser as recenserProxys, declarerProxy, proxyDuFichier, urlProxy, cheminStockage, resumeProxys, type AvanceProxy } from "./proxy";
+import { apercu as srcApercu, assurerProxys, recenser as recenserProxys, declarerProxy, proxyDuFichier, urlProxy, cheminStockage, resumeProxys, precharger as prechargerProxys, libererLocaux, type AvanceProxy } from "./proxy";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { drawTransitionFrame, drawPlanFixe } from "./render-core";
@@ -839,6 +839,15 @@ export default function MontagePage() {
   /* Mesure de performance, ouverte avec ?perf=1. Rien du tout sans : ni
      compteur, ni Profiler, ni observateur. On a passé plusieurs tours à deviner
      d'où venait la saccade ; ce panneau la fait dire à la machine. */
+  /* Ce que la lecture CORRIGE, compté image par image.
+
+     Le compteur de performance disait « tout est vert » pendant que Martin
+     sentait la lecture accrocher : il mesurait React, le fil principal et le
+     décodeur, jamais les rattrapages eux-mêmes. Or c'est eux qui s'entendent et
+     se voient. Un recalage de lecteur, c'est un hoquet ; une correction de
+     vitesse sur une piste son, c'est une note qui ondule. On les compte donc,
+     un par un, à l'endroit exact où ils se produisent. */
+  const correctionsRef = useRef({ seeksVideo: 0, vitesseVideo: 0, seeksSon: 0, vitesseSon: 0, imagesAncrees: 0, imagesLecture: 0 });
   const [perf] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
   const compteurRendus = useCompteurRendus(perf);
   const dureeRenduRef = useRef(0);
@@ -1825,6 +1834,10 @@ export default function MontagePage() {
         dernierCtVideo = -1;
       }
       ancreVideoRef.current = ancree;
+      if (ac && ac.kind === "video") {
+        correctionsRef.current.imagesLecture++;
+        if (ancree) correctionsRef.current.imagesAncrees++;
+      }
 
       if (total > 0 && n >= total) {
         clockRef.current = 0; timeRef.current = 0;
@@ -1964,12 +1977,20 @@ export default function MontagePage() {
   const montesRef = useRef(0);
   useEffect(() => {
     montesRef.current++;
-    return () => { montesRef.current--; proxysLancesRef.current = false; };
+    return () => {
+      montesRef.current--;
+      proxysLancesRef.current = false;
+      // Les copies tenues en mémoire ne doivent pas survivre au monteur.
+      if (montesRef.current <= 0) libererLocaux();
+    };
   }, []);
   const monteEncore = () => montesRef.current > 0;
 
   const televerserProxy = useCallback(async (bucket: string, chemin: string, blob: Blob) => {
-    const { error } = await supabase.storage.from(bucket).upload(chemin, blob, { upsert: true, contentType: "video/mp4" });
+    // `cacheControl` long : une copie d'aperçu est dérivée de son original et ne
+    // change jamais. Sans ce réglage Supabase la sert en `no-cache`, et le
+    // navigateur redemande le fichier au serveur à chaque usage.
+    const { error } = await supabase.storage.from(bucket).upload(chemin, blob, { upsert: true, contentType: "video/mp4", cacheControl: "31536000" });
     // Jamais silencieux : un proxy qui ne part pas veut dire un aperçu qui reste
     // lourd, et on doit pouvoir le lire dans la console plutôt que le deviner.
     if (error) { console.warn("[proxy] envoi refusé", chemin, error.message); return false; }
@@ -1989,14 +2010,26 @@ export default function MontagePage() {
          profite donc du proxy de ce plan. Une vraie musique n'a pas d'image, la
          fabrication n'aurait rien à réduire. */
       const sons = audioTracks.filter((a) => a.src).map((a) => a.src);
-      if (sons.length) await recenserProxys(sons).catch(() => []);
-      if (monteEncore()) majProxys((k) => k + 1);
-      await assurerProxys(aFabriquer, televerserProxy, {
-        onAvance: (a) => { if (monteEncore()) setProxyEnCours(a); },
+      const tous = aFabriquer.concat(sons);
+      const suivi = {
         onPret: () => { if (monteEncore()) majProxys((k) => k + 1); },
         annule: () => !monteEncore(),
+      };
+      await recenserProxys(tous).catch(() => []);
+      if (monteEncore()) majProxys((k) => k + 1);
+      /* Dans cet ordre, et c'est voulu.
+         1. Les copies qui existent déjà partent en mémoire TOUT DE SUITE : c'est
+            le cas courant, un montage qu'on rouvre, et il n'y a aucune raison
+            de le faire attendre derrière une fabrication.
+         2. On fabrique ensuite celles qui manquent, ce qui peut prendre une minute.
+         3. Et on précharge celles-là à leur tour. */
+      await prechargerProxys(tous, suivi);
+      await assurerProxys(aFabriquer, televerserProxy, {
+        onAvance: (a) => { if (monteEncore()) setProxyEnCours(a); },
+        ...suivi,
       });
       if (monteEncore()) setProxyEnCours(null);
+      await prechargerProxys(tous, suivi);
     })();
   }, [clips, overlays, audioTracks, televerserProxy]);
 
@@ -2013,7 +2046,10 @@ export default function MontagePage() {
       if (!blob) { declarerProxy(src, false); return; } // rush déjà léger : rien à faire
       const ok = await televerserProxy(place.bucket, place.chemin, blob);
       declarerProxy(src, ok);
-      if (ok && monteEncore()) majProxys((k) => k + 1);
+      if (ok && monteEncore()) {
+        majProxys((k) => k + 1);
+        void prechargerProxys([src], { onPret: () => { if (monteEncore()) majProxys((k) => k + 1); }, annule: () => !monteEncore() });
+      }
     } catch {
       declarerProxy(src, false);
     }
@@ -2074,6 +2110,7 @@ export default function MontagePage() {
         const mustRecover = (vEl.ended || drift > 1.5) && now - lastSeekRef.current > 250;
         if (isFinite(expected) && !vEl.seeking && (mustRecover || (drift > 1.0 && now - lastSeekRef.current > 500))) {
           lastSeekRef.current = now;
+          correctionsRef.current.seeksVideo++;
           vEl.currentTime = Math.max(0, expected);
           if (vEl.paused) vEl.play().catch(() => {});
         } else if (ancreVideoRef.current) {
@@ -2097,7 +2134,7 @@ export default function MontagePage() {
           const ecart = (vEl.currentTime - expected) / (ac.speed || 1);
           const correction = Math.max(-0.04, Math.min(0.04, -ecart * 0.25));
           const vise = (ac.speed || 1) * (1 + (Math.abs(ecart) > 0.04 ? correction : 0));
-          if (Math.abs(vEl.playbackRate - vise) > 0.002) vEl.playbackRate = vise;
+          if (Math.abs(vEl.playbackRate - vise) > 0.002) { vEl.playbackRate = vise; correctionsRef.current.vitesseVideo++; }
         }
         const g = clipAudioGainAt(ac, t - ac.start);
         vEl.volume = mutedLanesRef.current.has("video") ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
@@ -2115,10 +2152,10 @@ export default function MontagePage() {
           const ecart = el.currentTime - srcT;
           // Seuil resserré de 500 à 250 ms : l'horloge est maintenant calée sur
           // l'image, une demi-seconde de retard sur la musique s'entendait.
-          if (Math.abs(ecart) > 0.25) { el.currentTime = srcT; el.playbackRate = 1; }
+          if (Math.abs(ecart) > 0.25) { el.currentTime = srcT; el.playbackRate = 1; correctionsRef.current.seeksSon++; }
           else {
             const vise = 1 + Math.max(-0.03, Math.min(0.03, -ecart * 0.2));
-            if (Math.abs(el.playbackRate - vise) > 0.002) el.playbackRate = vise;
+            if (Math.abs(el.playbackRate - vise) > 0.002) { el.playbackRate = vise; correctionsRef.current.vitesseSon++; }
           }
           if (el.paused) el.play().catch(() => {});
           el.volume = mutedLanesRef.current.has(`a${a.track ?? 0}`) ? 0 : Math.min(1, audioVolumeAt(a, local)); // el.volume ∈ [0,1] ; boost >100 % à l'export
@@ -6818,6 +6855,7 @@ export default function MontagePage() {
         videoRef={() => [videoARef, videoBRef][activeSlotRef.current].current}
         coutCoupeRef={coutCoupeRef}
         resumeCopies={resumeProxys}
+        correctionsRef={correctionsRef}
       />}
     </>
   );

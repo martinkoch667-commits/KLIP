@@ -32,6 +32,11 @@ export interface MesuresPerf {
   /** Où en sont les copies d'aperçu. Sans elles, tout le reste peut être vert
    *  et la lecture rester lourde : c'est la première chose à vérifier. */
   copies: string;
+  /** Part des images où l'horloge est calée sur le lecteur vidéo, en %. -1 :
+   *  aucune vidéo jouée pendant la seconde, rien à dire. */
+  ancrage: number;
+  recalagesImage: number;
+  correctionsSon: number;
   cadence: number;
   definition: string;
   coutCoupe: number;
@@ -50,6 +55,7 @@ export function PerfHud({
   videoRef,
   coutCoupeRef,
   resumeCopies,
+  correctionsRef,
 }: {
   compteurRendus: React.MutableRefObject<number>;
   dureeRenduRef: React.MutableRefObject<number>;
@@ -60,10 +66,13 @@ export function PerfHud({
   /** Lu à chaque seconde, comme les autres mesures : l'état change pendant que
    *  la fabrication tourne, et un rendu React ne le rafraîchirait pas. */
   resumeCopies?: () => string;
+  /** Rattrapages de la lecture, comptés là où ils se produisent. Remis à zéro
+   *  à chaque seconde, comme les autres mesures. */
+  correctionsRef?: React.MutableRefObject<{ seeksVideo: number; vitesseVideo: number; seeksSon: number; vitesseSon: number; imagesAncrees: number; imagesLecture: number }>;
 }) {
   const [m, setM] = useState<MesuresPerf>({
     rendus: 0, msRendu: 0, tachesLongues: 0, msBloquees: 0, piresTaches: "",
-    imagesPerdues: 0, imagesTotal: 0, cadence: 0, definition: "?", coutCoupe: 0, copies: "?",
+    imagesPerdues: 0, imagesTotal: 0, cadence: 0, definition: "?", coutCoupe: 0, copies: "?", ancrage: -1, recalagesImage: 0, correctionsSon: 0,
   });
   const [replie, setReplie] = useState(false);
 
@@ -103,7 +112,13 @@ export function PerfHud({
       const rendus = compteurRendus.current - derniersRendus;
       derniersRendus = compteurRendus.current;
       const pires = [...taches].sort((a, b) => b.d - a.d).slice(0, 2).map((t) => `${t.d}ms ${t.nom}`).join(" · ");
+      const c = correctionsRef?.current;
+      const ancrage = c && c.imagesLecture > 0 ? Math.round((c.imagesAncrees / c.imagesLecture) * 100) : -1;
+      const recalagesImage = c ? c.seeksVideo + c.vitesseVideo : 0;
+      const correctionsSon = c ? c.seeksSon + c.vitesseSon : 0;
+      if (c) { c.seeksVideo = 0; c.vitesseVideo = 0; c.seeksSon = 0; c.vitesseSon = 0; c.imagesAncrees = 0; c.imagesLecture = 0; }
       setM({
+        ancrage, recalagesImage, correctionsSon,
         copies: resumeCopies ? resumeCopies() : "?",
         definition: v && v.videoWidth ? `${v.videoWidth}×${v.videoHeight}` : "?",
         coutCoupe: Math.round(coutCoupeRef?.current ?? 0),
@@ -121,7 +136,7 @@ export function PerfHud({
     }, 1000);
 
     return () => { clearInterval(minuteur); cancelAnimationFrame(raf); obs?.disconnect(); };
-  }, [compteurRendus, dureeRenduRef, videoRef, coutCoupeRef, resumeCopies]);
+  }, [compteurRendus, dureeRenduRef, videoRef, coutCoupeRef, resumeCopies, correctionsRef]);
 
   const alerte = m.msBloquees > 120 || m.imagesPerdues > 2;
   const ligne = (nom: string, valeur: string, mauvais = false) => (
@@ -152,6 +167,9 @@ export function PerfHud({
           {ligne("fil bloqué", `${m.msBloquees} ms/s`, m.msBloquees > 120)}
           {ligne("images vidéo perdues", `${m.imagesPerdues} / ${m.imagesTotal}`, m.imagesPerdues > 2)}
           {ligne("images écran", `${m.cadence}/s`, m.cadence < 45)}
+          {ligne("horloge sur l'image", m.ancrage < 0 ? "—" : m.ancrage + " %", m.ancrage >= 0 && m.ancrage < 90)}
+          {ligne("recalages image", `${m.recalagesImage}/s`, m.recalagesImage > 0)}
+          {ligne("corrections son", `${m.correctionsSon}/s`, m.correctionsSon > 0)}
           {ligne("copies d'aperçu", m.copies, !/prêtes/.test(m.copies))}
           {ligne("définition rush", m.definition, /(\d{4,})×/.test(m.definition))}
           {ligne("coupe → 1re image", `${m.coutCoupe} ms`, m.coutCoupe > 120)}

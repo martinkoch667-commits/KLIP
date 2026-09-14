@@ -106,8 +106,78 @@ function noter(quoi: string, e?: unknown): void {
  *  Tant qu'un proxy n'est pas confirmé présent, on rend l'original. */
 export function apercu(src: string): string {
   if (!src) return src;
+  const local = locaux.get(src);
+  if (local) return local;
   const p = connus.get(src) ? urlProxy(src) : null;
   return p || src;
+}
+
+/* ── PRÉCHARGEMENT ────────────────────────────────────────────────────────────
+
+   Idée de Martin : que les médias soient déjà là quand on arrive, pour que
+   lancer la lecture n'importe où ne coûte plus rien.
+
+   Un simple réchauffage du cache HTTP ne suffisait pas. Supabase sert ces
+   fichiers en `cache-control: no-cache` : le navigateur les garde, mais doit
+   redemander au serveur avant chaque usage. Il restait donc un aller-retour
+   réseau à chaque plan. On télécharge plutôt chaque copie EN MÉMOIRE et on donne
+   au lecteur une adresse `blob:` locale. Pendant le montage, plus aucun octet ne
+   passe par le réseau, comme dans un logiciel qui lit son disque.
+
+   Deux garde-fous :
+     - uniquement les COPIES d'aperçu, jamais les originaux. Précharger du 4K,
+       c'était avaler 67 Mo au démarrage sur un montage de vingt secondes ;
+     - un plafond de mémoire, pour qu'un montage de cent plans ne sature pas
+       l'onglet. Au-delà, les plans restants se chargent à la demande, comme
+       avant, et rien ne casse.
+
+   Et on ne crée AUCUN lecteur vidéo pour précharger : Chrome en refuse au-delà
+   d'une cinquantaine par onglet (voir media-read.ts). On télécharge, c'est tout. */
+const locaux = new Map<string, string>();
+let octetsLocaux = 0;
+const PLAFOND_LOCAL = 400 * 1024 * 1024;
+
+export function nombreLocaux(): number {
+  return locaux.size;
+}
+
+/** Télécharge en mémoire les copies d'aperçu disponibles, dans l'ordre donné
+ *  (celui de la timeline : on prépare d'abord ce qu'on jouera en premier). */
+export async function precharger(
+  srcs: string[],
+  ev?: { onPret?: (src: string) => void; annule?: () => boolean },
+): Promise<number> {
+  let faits = 0;
+  const liste = sansDoublons(srcs);
+  for (let i = 0; i < liste.length; i++) {
+    if (ev?.annule?.()) break;
+    const src = liste[i];
+    if (locaux.has(src) || connus.get(src) !== true) continue; // pas de copie : chargé à la demande
+    const url = urlProxy(src);
+    if (!url) continue;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) { noter("préchargement refusé (" + r.status + ")"); continue; }
+      const blob = await r.blob();
+      if (octetsLocaux + blob.size > PLAFOND_LOCAL) { noter("préchargement plafonné à 400 Mo"); break; }
+      if (ev?.annule?.()) break;
+      octetsLocaux += blob.size;
+      locaux.set(src, URL.createObjectURL(blob));
+      faits++;
+      ev?.onPret?.(src);
+    } catch (e) {
+      noter("préchargement", e);
+    }
+  }
+  return faits;
+}
+
+/** Rend la mémoire en quittant le monteur. Une adresse `blob:` non libérée
+ *  retient son fichier jusqu'à la fermeture de l'onglet. */
+export function libererLocaux(): void {
+  locaux.forEach((url) => { try { URL.revokeObjectURL(url); } catch { /* déjà libérée */ } });
+  locaux.clear();
+  octetsLocaux = 0;
 }
 
 /** Vrai si ce plan est lu en proxy en ce moment. Sert à l'affichage, pas à la
@@ -317,7 +387,7 @@ export function resumeProxys(): string {
   if (enCours.size > 0) return prets + "/" + total + " · fabrication";
   if (total === 0) return "pas commencé";
   if (prets === 0) return "aucune · " + (derniereRaison || sans + " sans copie");
-  return prets + "/" + total + " prêtes";
+  return prets + "/" + total + " prêtes · " + locaux.size + " en local";
 }
 
 /** Enregistre un proxy fabriqué à l'import, pour que l'aperçu s'en serve sans
