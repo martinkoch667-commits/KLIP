@@ -59,7 +59,7 @@ function Icone({ outil, rond }: { outil: Outil; rond?: boolean }) {
 }
 
 /** Le cadre de sélection de l'éditeur, poignées carrées aux coins. */
-function Selection({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Selection({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <span className={"fx-sel " + (className ?? "")}>
       {children}
@@ -70,7 +70,7 @@ function Selection({ children, className }: { children: React.ReactNode; classNa
 }
 
 /** Un curseur de collaborateur : la flèche, puis l'étiquette à son nom. */
-function Curseur({ nom, teinte, style, fleche = "haut-gauche" }: {
+export function Curseur({ nom, teinte, style, fleche = "haut-gauche" }: {
   nom: string; teinte: "violet" | "vert" | "ambre"; style: React.CSSProperties; fleche?: "haut-gauche" | "haut-droite";
 }) {
   return (
@@ -83,7 +83,8 @@ function Curseur({ nom, teinte, style, fleche = "haut-gauche" }: {
   );
 }
 
-function Fenetre({ children }: { children: React.ReactNode }) {
+/** La fenêtre de navigateur. `chemin` : getklip.fr/<chemin> dans la barre. */
+export function Fenetre({ children, chemin }: { children: React.ReactNode; chemin?: string }) {
   return (
     <div className="fx-cadre">
       <div className="fx-fenetre">
@@ -91,7 +92,7 @@ function Fenetre({ children }: { children: React.ReactNode }) {
           <i style={{ background: "#EE6A5F" }} /><i style={{ background: "#F5BD4F" }} /><i style={{ background: "#61C454" }} />
           <span className="fx-url">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="2.4" /></svg>
-            getklip.fr
+            getklip.fr{chemin ? `/${chemin}` : ""}
           </span>
         </div>
         <div className="fx-scene">{children}</div>

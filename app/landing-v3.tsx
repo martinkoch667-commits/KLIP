@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import InscriptionOverlay, { ouvrirCompte, type ModeCompte } from '@/components/InscriptionOverlay';
 import CtaEmailHero from '@/components/CtaEmailHero';
+import CartesFonctions from '@/components/CartesFonctions';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
@@ -1195,55 +1196,9 @@ function DeckShowcase() {
   );
 }
 
-/* ─── EditorMock — mini éditeur (Features) ───────────────────────────────── */
-function EditorMock() {
-  const corners = [{ top: -5, left: -5 }, { top: -5, right: -5 }, { bottom: -5, left: -5 }, { bottom: -5, right: -5 }] as React.CSSProperties[];
-  return (
-    <div style={{ background: 'var(--paper-2)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 'min(350px, 100%)', margin: '0 auto', boxShadow: '0 34px 64px -30px rgba(0,0,0,.55)', border: '1px solid var(--line-2)' }}>
-      {/* flexWrap : sans lui, la rangée impose son min-content à la colonne de grille
-         (feat-hero) et fait déborder toute la carte sur mobile */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-        <span style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(140deg,#1f7a4d,#0c2a1d)', color: '#fff', display: 'grid', placeItems: 'center', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11 }}>ML</span>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {['#0c2a1d', 'var(--leaf)', '#EFEEE4'].map((cc, i) => <span key={i} style={{ width: 18, height: 18, borderRadius: '50%', background: cc, boxShadow: 'inset 0 0 0 1px var(--line)' }} />)}
-        </div>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, color: 'var(--ink-2)', padding: '5px 9px', borderRadius: 7, boxShadow: 'inset 0 0 0 1px var(--line)' }}>Aa Archivo</span>
-        <span style={{ marginLeft: 'auto', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, color: 'var(--ink-3)' }}>● calé au pixel</span>
-      </div>
-      <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '3 / 4', background: 'radial-gradient(130% 130% at 18% 0%, #20a368, #0a2419 72%)', padding: 22, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10, letterSpacing: '.14em', color: 'rgba(255,255,255,.82)' }}>MAISON LOU</span>
-        <div style={{ position: 'relative', alignSelf: 'flex-start', maxWidth: '82%' }}>
-          <div style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontStyle: 'italic', fontSize: 'clamp(20px,2.3vw,30px)', lineHeight: 1, color: '#fff', textTransform: 'uppercase', letterSpacing: '-.02em' }}>L&apos;été se réserve maintenant</div>
-          <div style={{ position: 'absolute', inset: '-11px -13px', border: '1.6px dashed var(--leaf)', borderRadius: 4, pointerEvents: 'none' }}>
-            {corners.map((cs, i) => <span key={i} style={{ position: 'absolute', ...cs, width: 9, height: 9, background: 'var(--leaf)', border: '1.5px solid #fff', borderRadius: 2 }} />)}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {['#terrasse', '#nouvellecarte', '#septembre'].map((h, i) => (
-            <span key={i} style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10.5, color: 'rgba(255,255,255,.9)', padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,.12)' }}>{h}</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Features ───────────────────────────────────────────────────────────── */
 function Features() {
   const t = useTranslations('landing.features');
-  const tags = [t('tag1'), t('tag2'), t('tag3')];
-  const F = ({ ic, t: title, d, tone }: { ic: string; t: string; d: string; tone?: 'leaf' | 'forest' }) => {
-    const isLeaf = tone === 'leaf', isForest = tone === 'forest';
-    return (
-      <div className="card rv" style={{ padding: 26, display: 'flex', flexDirection: 'column', gap: 13, background: isLeaf ? 'var(--leaf)' : isForest ? 'var(--forest)' : 'var(--card)', color: isForest ? 'var(--cream)' : isLeaf ? 'var(--leaf-ink)' : 'var(--ink)' }}>
-        <span style={{ width: 44, height: 44, borderRadius: 13, display: 'grid', placeItems: 'center', background: isLeaf ? 'var(--leaf-ink)' : isForest ? 'var(--leaf)' : 'var(--forest)', color: isLeaf ? 'var(--leaf)' : isForest ? 'var(--leaf-ink)' : 'var(--leaf)', boxShadow: '0 10px 20px -10px rgba(16,19,11,.35)' }}>
-          <Icon name={ic} size={21} />
-        </span>
-        <h3 style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 18.5, letterSpacing: '-.02em', textTransform: 'uppercase' }}>{title}</h3>
-        <p className="split-lines" style={{ fontSize: 14.5, lineHeight: 1.56, color: isForest ? 'var(--cream-2)' : isLeaf ? 'var(--leaf-ink)' : 'var(--ink-2)', opacity: isLeaf ? .85 : 1 }}>{d}</p>
-      </div>
-    );
-  };
   return (
     <section id="features" className="section">
       <div className="wrap">
@@ -1252,33 +1207,9 @@ function Features() {
             {t('title1')}<br /><span className="acc-hl">{t('titleAccent')}</span>
           </h2>
         </div>
-        <div className="rv feat-hero" style={{ display: 'grid', gridTemplateColumns: '1fr 1.12fr', gap: 0, marginTop: 52, background: 'var(--forest)', color: 'var(--cream)', borderRadius: 'var(--r)', overflow: 'hidden', boxShadow: '0 50px 100px -55px rgba(7,33,23,.8)', position: 'relative' }}>
-          <div style={{ padding: 'clamp(32px, 3.6vw, 52px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20 }}>
-            <span className="stk-card stk-leaf" style={{ alignSelf: 'flex-start', rotate: '-2deg', fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', gap: 7 }}>
-              <Icon name="spark" size={14} /> {t('badge')}
-            </span>
-            <h3 className="t-arch" style={{ fontSize: 'clamp(36px, 4.4vw, 60px)' }}>{t('mainTitle')}</h3>
-            <p className="split-lines" style={{ color: 'var(--cream-2)', fontSize: 17.5, lineHeight: 1.6, maxWidth: 440 }}>{t('mainText')}</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
-              {tags.map((tag, i) => (
-                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, color: 'var(--cream)', padding: '8px 13px', borderRadius: 999, background: 'var(--forest-2)', border: '1px solid var(--line-f)' }}>
-                  <Icon name="check" size={14} style={{ color: 'var(--leaf)' }} /> {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div style={{ background: 'var(--forest-2)', padding: 'clamp(26px, 3vw, 44px)', display: 'grid', placeItems: 'center' }}>
-            <EditorMock />
-          </div>
-        </div>
-        <div className="bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(216px, 1fr))', gap: 14, marginTop: 16 }}>
-          {/* ordre validé par Martin : montage vidéo directement sous l'éditeur visuel */}
-          <F ic="scissors" t={t('f5t')} d={t('f5d')} tone="leaf" />
-          <F ic="voice" t={t('f1t')} d={t('f1d')} />
-          <F ic="wand" t={t('f2t')} d={t('f2d')} />
-          <F ic="layers" t={t('f3t')} d={t('f3d')} />
-          <F ic="instagram" t={t('f4t')} d={t('f4d')} tone="forest" />
-        </div>
+        {/* Une carte « Curseurs » par fonctionnalité, chacune avec sa scène
+            (Martin, 2026-09-14). Remplace la grande carte forêt et le bento. */}
+        <div className="rv"><CartesFonctions /></div>
       </div>
     </section>
   );
