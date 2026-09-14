@@ -137,7 +137,7 @@ function ScenePublication() {
       <span className="cf-grille">
         {jours.map((_, i) => (
           <span key={i} className="cf-jour">
-            {(i === 0 || i === 5) && <span className="cf-vignette is-passee" />}
+            {(i === 0 || i === 1) && <span className="cf-vignette is-passee" />}
             {i === 3 && <Selection className="cf-vignette-sel"><span className="cf-vignette" /></Selection>}
           </span>
         ))}
@@ -253,7 +253,7 @@ export default function CartesFonctions() {
           <SceneLegende />
         </Carte>
         <Carte chemin="clients" titre={t("f3t")} texte={t("f3d")}
-          curseurs={<Curseur nom="Vous" teinte="ambre" fleche="haut-droite" style={{ left: "88%", top: "44cqw", ["--d" as string]: "-1.6s" }} />}>
+          curseurs={<Curseur nom="Vous" teinte="ambre" style={{ left: "70%", top: "47cqw", ["--d" as string]: "-1.6s" }} />}>
           <SceneClients />
         </Carte>
         <Carte chemin="planning" titre={t("f4t")} texte={t("f4d")}
