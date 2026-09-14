@@ -9,8 +9,9 @@
  * « KLIP REMPLACE TOUT ÇA » est la carte Fusion (remplace.tsx), posée sur la
  * zone sombre en desktop et sous les cartes en mobile.
  *
- * LE TITRE a quatre dispositions à l'essai. Un sélecteur, visible partout sauf
- * sur getklip.fr, passe de l'une à l'autre ; ?t= garde le choix dans l'adresse.
+ * LE TITRE est posé côte à côte avec le texte et le choix de période (retenu
+ * par Martin parmi quatre dispositions, le 2026-09-14) : le titre à gauche sur
+ * deux lignes, le reste à droite. En mobile, le même bloc s'aligne à gauche.
  *
  * LES PRIX SONT CEUX DE LA LANDING, au pixel près. Même carte, mêmes jetons de
  * couleur (ceux de `.v3`, pas ceux de l'app, dont le forest n'est pas le même),
@@ -35,14 +36,6 @@ import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
 import Fusion, { FUSION_CSS } from "./remplace";
-
-type Titre = "deux-lignes" | "cote-a-cote" | "surtitre" | "essai";
-const TITRES: { cle: Titre; nom: string }[] = [
-  { cle: "deux-lignes", nom: "2 lignes" },
-  { cle: "cote-a-cote", nom: "Côte à côte" },
-  { cle: "surtitre", nom: "Surtitre" },
-  { cle: "essai", nom: "Essai" },
-];
 
 /* Assez de cases pour REMPLIR la grille inclinée, qui déborde de l'écran : à
    150 px sur une zone d'environ 1100 × 1400 px, il en faut une cinquantaine. */
@@ -96,49 +89,40 @@ const CSS = `
     width:min(380px,29vw);}
   .pv-remplace-mobile{display:none;}
 
-  /* ── Sélecteur de disposition (aperçu seulement) ─────────────────────── */
-  .pv-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
-    display:flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:var(--ink);
-    box-shadow:0 18px 40px -12px rgba(0,0,0,.5);max-width:calc(100vw - 24px);}
-  .pv-choix-lib{padding:0 8px 0 10px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.5);}
-  .pv .pv-choix button{padding:8px 12px;border-radius:999px;font-weight:800;font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;}
-  .pv .pv-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
-
   /* ── La partie claire ────────────────────────────────────────────────── */
   .pv-marque{position:absolute;top:28px;left:clamp(24px,4vw,56px);z-index:4;line-height:0;}
   .pv-marque img{height:34px;width:34px;border-radius:10px;display:block;}
   /* Largeur calée sur le bas de la diagonale (60 %), moins une marge : c'est là
      que la zone sombre avance le plus vers la gauche. */
+  /* 128 px en haut : à 96, le titre arrivait à 34 px sous le logo et les deux
+     se touchaient presque. */
   .pv-clair{position:relative;z-index:2;width:calc(60% - 36px);max-width:900px;min-height:100dvh;
     display:flex;flex-direction:column;justify-content:center;
-    padding:96px 0 44px clamp(24px,4vw,56px);}
+    padding:128px 0 44px clamp(24px,4vw,56px);}
 
   .pv-h1{font-family:var(--heavy);font-weight:800;text-transform:uppercase;letter-spacing:-.03em;
     line-height:.98;text-wrap:balance;font-size:clamp(34px,3.4vw,52px);margin:0;}
   .pv-lead{color:var(--ink-2);font-size:17px;line-height:1.55;margin:14px 0 0;max-width:46ch;text-wrap:pretty;}
 
-  /* ── Les dispositions du titre ───────────────────────────────────────── */
-  .pv-tete{display:flex;flex-direction:column;align-items:flex-start;}
-  /* Chaque ligne est un bloc : la coupure est choisie, pas laissée au hasard
-     de la largeur. */
+  /* ── Le titre, côte à côte avec le texte et la période ────────────────── */
+  /* Titre à gauche sur deux lignes, texte et période à droite, CENTRÉS sur la
+     hauteur du titre : calés en bas, ils paraissaient tomber. L'écart entre les
+     deux colonnes monte à ~70 px, à 36 px le texte collait au « S » de
+     « VISUELS ». */
+  .pv-tete{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:clamp(40px,5vw,88px);
+    align-items:center;width:100%;}
+  /* Chaque ligne du titre est un bloc : la coupure est choisie, pas laissée au
+     hasard de la largeur. */
   .pv-h1 .pv-l{display:block;}
   .pv-h1.is-deux{font-size:clamp(40px,4vw,62px);line-height:.94;}
   .pv-h1.is-deux .pv-l + .pv-l{margin-top:.1em;}
-  /* Côte à côte : le titre à gauche, le texte et la période à droite, calés
-     sur la ligne de base du titre. On gagne la hauteur d'un paragraphe. */
-  .pv-tete.is-cote{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:clamp(22px,2.6vw,40px);
-    align-items:end;width:100%;}
-  .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;padding-bottom:2px;}
-  .pv-tete.is-cote .pv-lead{margin:0;font-size:15.5px;line-height:1.45;max-width:30ch;}
-  .pv-tete.is-cote .pv-periode{margin-top:14px;}
+  .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;}
+  .pv-tete .pv-lead{margin:0;font-size:15.5px;line-height:1.5;max-width:30ch;}
+  .pv-tete .pv-periode{margin-top:16px;}
   /* La colonne de droite est étroite : sans ça, « 2 mois offerts » passait sur
      deux lignes et gonflait la pastille. */
-  .pv-tete.is-cote .pv-periode button{padding:8px 13px;white-space:nowrap;}
+  .pv-tete .pv-periode button{padding:8px 13px;white-space:nowrap;}
   .pv-deux{white-space:nowrap;}
-  .pv-surtitre{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;padding:6px 13px 6px 6px;border-radius:999px;
-    background:var(--leaf-soft);color:var(--leaf-ink);font-weight:800;font-size:13px;}
-  .pv-surtitre-coche{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--leaf-ink);color:var(--leaf);}
-  .pv-h1.is-sobre{font-size:clamp(30px,2.9vw,44px);}
 
   /* Sélecteur de période : celui de la landing. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:22px;padding:5px;
@@ -149,7 +133,9 @@ const CSS = `
   .pv-deux{font-size:11px;padding:2px 7px;border-radius:999px;background:var(--leaf);color:var(--leaf-ink);}
 
   /* ── Les cartes : la section Tarifs de la landing ───────────────────── */
-  .pv-grille{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:44px;align-items:stretch;}
+  /* 64 px sous l'en-tête : la carte Studio remonte de 14 px et son étiquette
+     déborde encore de 16, à 44 elle venait toucher le choix de période. */
+  .pv-grille{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:64px;align-items:stretch;}
   .pv-col{display:flex;min-width:0;}
   .pv-col.is-pop{transform:translateY(-14px);}
   .pv-carte{position:relative;flex:1;display:flex;flex-direction:column;min-width:0;
@@ -223,19 +209,17 @@ const CSS = `
     .pv-mur{top:-40%;left:-20%;width:140%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
     .pv-remplace-large{display:none;}
     .pv-remplace-mobile{display:block;width:100%;max-width:420px;margin:48px auto 24px;text-align:left;}
-    .pv.a-choix .pv-clair{padding-bottom:104px;}
     .pv-marque{top:18px;left:20px;}
     .pv-marque img{box-shadow:0 4px 14px rgba(0,0,0,.35);}
     .pv-clair{width:100%;max-width:none;min-height:0;align-items:center;text-align:center;
       padding:26px 20px 48px;}
     .pv-lead{margin-left:auto;margin-right:auto;}
     .pv-periode{align-self:center;}
-    .pv-tete{align-items:center;width:100%;}
-    /* Côte à côte n'a plus la place : sur mobile il devient la version
-       alignée à gauche, l'autre façon de poser le même bloc. */
-    .pv-tete.is-cote{display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:980px;}
-    .pv-tete.is-cote .pv-lead{margin:14px 0 0;font-size:16px;max-width:40ch;}
-    .pv-tete.is-cote .pv-periode{align-self:flex-start;margin-top:20px;}
+    /* Plus la place pour deux colonnes : le bloc s'empile, aligné à gauche
+       comme les cartes en dessous. */
+    .pv-tete{display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:980px;}
+    .pv-tete .pv-lead{margin:14px 0 0;font-size:16px;max-width:40ch;}
+    .pv-tete .pv-periode{align-self:flex-start;margin-top:20px;}
     .pv-grille{width:100%;max-width:980px;text-align:left;}
     .pv-rassure{max-width:44ch;}
   }
@@ -243,9 +227,6 @@ const CSS = `
   @media(max-width:760px){
     .pv-h1{font-size:clamp(30px,8.4vw,40px);}
     .pv-h1.is-deux{font-size:clamp(36px,10.4vw,48px);}
-    .pv-h1.is-sobre{font-size:clamp(28px,7.6vw,34px);}
-    .pv .pv-choix button{padding:8px 10px;font-size:12.5px;}
-    .pv-choix-lib{display:none;}
     .pv-lead{font-size:16px;}
     .pv-grille{grid-template-columns:1fr;max-width:420px;gap:26px;margin-top:38px;}
     .pv-col.is-pop{transform:none;}
@@ -272,20 +253,12 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const [periode, setPeriode] = useState<"monthly" | "yearly">("yearly");
   const [nom, setNom] = useState("");
   const [visuels, setVisuels] = useState<string[]>([]);
-  const [titre, setTitre] = useState<Titre>("deux-lignes");
-  /* Le sélecteur sert à départager les dispositions : il n'a rien à faire devant
-     un vrai visiteur. Décidé après montage, `location` n'existant pas au rendu
-     serveur. */
-  const [apercu, setApercu] = useState(false);
 
   // Même règle que la landing : sans compte connu, l'offre reste ouverte.
   const lancement = launchApplies(periode) && (seatsLeft === null || seatsLeft > 0);
   const annuel = periode === "yearly";
 
   useEffect(() => {
-    setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
-    const t = new URLSearchParams(location.search).get("t");
-    if (TITRES.some(x => x.cle === t)) setTitre(t as Titre);
     setNom(lireDraft()?.name ?? "");
     // Les visuels déposés par Martin prennent la place des cases grises.
     fetch("/api/vitrine")
@@ -311,14 +284,6 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     return annuel ? tp("billedYear", { total: fmt(o.annuel * 12) }) : tp("billedMonth");
   }
 
-  function choisir(t: Titre) {
-    setTitre(t);
-    // Dans l'adresse, pour pouvoir envoyer une disposition précise en lien.
-    const url = new URL(location.href);
-    url.searchParams.set("t", t);
-    history.replaceState(null, "", url);
-  }
-
   /* Le prix Studio TEL QUE LA CARTE L'AFFICHE, période et remise comprises :
      c'est lui qu'on oppose à la pile d'outils. */
   const studioAffiche = annuel ? PLANS.solo.priceYearly : PLANS.solo.priceMonthly;
@@ -336,55 +301,12 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     ? <><span className="pv-l">Les visuels de</span><span className="pv-l"><span className="acc-hl">{nom}</span></span></>
     : <><span className="pv-l">Vos visuels</span><span className="pv-l">sont <span className="acc-hl">prêts</span></span></>;
 
-  let entete: React.ReactNode;
-  if (titre === "cote-a-cote") {
-    entete = (
-      <div className="pv-tete is-cote">
-        <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
-        <div className="pv-tete-droite">
-          <p className="pv-lead">Chacun s&apos;ouvre dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.</p>
-          {periodeUI}
-        </div>
-      </div>
-    );
-  } else if (titre === "surtitre") {
-    entete = (
-      <div className="pv-tete">
-        <span className="pv-surtitre">
-          <span className="pv-surtitre-coche" aria-hidden="true">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-          </span>
-          {nom ? `Charte de ${nom} appliquée` : "Votre charte est appliquée"}
-        </span>
-        <h1 className="pv-h1 is-sobre">Vos visuels sont <span className="acc-hl">prêts</span></h1>
-        <p className="pv-lead">Choisissez une offre pour les ouvrir dans l&apos;éditeur.</p>
-        {periodeUI}
-      </div>
-    );
-  } else if (titre === "essai") {
-    entete = (
-      <div className="pv-tete">
-        <h1 className="pv-h1"><span className="acc-hl">{TRIAL_DAYS} jours</span> pour tout essayer</h1>
-        <p className="pv-lead">{nom ? `Les visuels de ${nom}` : "Vos visuels"} vous attendent dans l&apos;éditeur. Rien à payer aujourd&apos;hui.</p>
-        {periodeUI}
-      </div>
-    );
-  } else {
-    entete = (
-      <div className="pv-tete">
-        <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
-        <p className="pv-lead">Ils s&apos;ouvrent dans l&apos;éditeur, calque par calque.</p>
-        {periodeUI}
-      </div>
-    );
-  }
-
   const cases = visuels.length
     ? Array.from({ length: NB_CASES }, (_, i) => visuels[(i * 3 + Math.floor(i / 7)) % visuels.length])
     : Array<string>(NB_CASES).fill("");
 
   return (
-    <div className={"pv" + (apercu ? " a-choix" : "")}>
+    <div className="pv">
       <style dangerouslySetInnerHTML={{ __html: CSS + FUSION_CSS }} />
 
       <div className="pv-sombre" aria-hidden="true">
@@ -405,7 +327,13 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
       <Link href="/" className="pv-marque"><img src="/icon-192.png" alt="Klip" /></Link>
 
       <div className="pv-clair">
-        {entete}
+        <div className="pv-tete">
+          <h1 className="pv-h1 is-deux">{enDeuxLignes}</h1>
+          <div className="pv-tete-droite">
+            <p className="pv-lead">Chacun s&apos;ouvre dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.</p>
+            {periodeUI}
+          </div>
+        </div>
 
         <div className="pv-grille">
           {offres.map(o => {
@@ -460,17 +388,6 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
           <b>0 € aujourd&apos;hui.</b> Premier prélèvement dans {TRIAL_DAYS} jours, annulable en un clic.
         </p>
       </div>
-
-      {apercu && (
-        <div className="pv-choix" role="group" aria-label="Disposition du titre">
-          <span className="pv-choix-lib">Titre</span>
-          {TITRES.map(x => (
-            <button key={x.cle} type="button" className={titre === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
-              {x.nom}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
