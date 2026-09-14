@@ -115,13 +115,16 @@ export const ONB_CSS = `
     font-size:clamp(32px,7.4vw,44px);margin:0 0 54px;text-wrap:balance;}
 
   /* Le mot sélectionné : la sélection du hero de la landing, à l'identique. */
-  .ob-mot{position:relative;display:inline-block;margin:0 .14em;rotate:-3deg;z-index:2;text-shadow:none;
+  /* Marges : le cadre déborde de 10 px et ses gélules de 5 de plus. Sans
+     marge haute, sur un titre de deux lignes, le cadre touchait la ligne du
+     dessus ; sans marges latérales, il collait au « ? » voisin. */
+  .ob-mot{position:relative;display:inline-block;margin:.24em .34em 0 .3em;rotate:-3deg;z-index:2;text-shadow:none;
     animation:ob-balance 5.5s ease-in-out 1.2s infinite;}
   @keyframes ob-balance{0%,100%{rotate:-3deg;}50%{rotate:-1deg;}}
   .ob-mot-carte{display:inline-flex;align-items:center;background:#fff;border-radius:.18em;padding:.06em .22em .1em;
     font-family:var(--oaks-c,'oaks-condensed'),Georgia,serif;font-weight:700;text-transform:uppercase;letter-spacing:.01em;
-    line-height:1;color:var(--ink);font-size:1.08em;
-    box-shadow:0 0 0 1px rgba(16,19,11,.07),0 24px 50px -22px rgba(16,19,11,.42);}
+    line-height:1;color:var(--ink);font-size:1.2em;
+    box-shadow:0 0 0 1.5px rgba(16,19,11,.08),0 24px 50px -22px rgba(16,19,11,.42);}
   .ob-sel-cadre{position:absolute;inset:-10px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;}
   .ob-sel-cadre i{position:absolute;display:block;background:#fff;border:2px solid var(--vio);box-shadow:0 2px 6px rgba(16,19,11,.18);box-sizing:border-box;}
   .ob-sel-h{width:13px;height:13px;border-radius:50%;}

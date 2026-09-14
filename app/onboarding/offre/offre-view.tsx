@@ -145,12 +145,12 @@ const CSS = `
      l'identique, comme dans tout le parcours d'essai. Carte blanche penchée en
      Oaks condensé, cadre violet, poignées rondes et en gélule, bouton de
      rotation dessous, léger balancement. */
-  .pv-mot{position:relative;display:inline-block;margin-left:.16em;rotate:-3deg;z-index:2;text-shadow:none;
+  .pv-mot{position:relative;display:inline-block;margin-left:.3em;rotate:-3deg;z-index:2;text-shadow:none;
     animation:pv-balance 5.5s ease-in-out 1.2s infinite;}
   @keyframes pv-balance{0%,100%{rotate:-3deg;}50%{rotate:-1deg;}}
   .pv-mot-carte{display:inline-flex;align-items:center;background:#fff;border-radius:.18em;padding:.06em .22em .1em;
     font-family:var(--oaks-c,'oaks-condensed'),Georgia,serif;font-weight:700;text-transform:uppercase;letter-spacing:.01em;
-    line-height:1;color:var(--ink);font-size:1.08em;box-shadow:0 0 0 1px rgba(16,19,11,.07),0 24px 50px -22px rgba(16,19,11,.42);}
+    line-height:1;color:var(--ink);font-size:1.16em;box-shadow:0 0 0 1.5px rgba(16,19,11,.08),0 24px 50px -22px rgba(16,19,11,.42);}
   .pv-sel-rot{position:absolute;left:50%;bottom:-46px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;}
   .pv-sel-rot::before{content:"";width:2px;height:18px;background:var(--vio);}
   .pv-sel-rot span{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--vio);display:grid;place-items:center;
