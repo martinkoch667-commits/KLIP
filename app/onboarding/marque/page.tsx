@@ -211,6 +211,9 @@ export default function CharePage() {
   const [modale, setModale] = useState<Modale>(null);
   const [brouillon, setBrouillon] = useState<Charte>(DEPART);
   const [importees, setImportees] = useState<FontFamily[]>([]);
+  /** Polices lues sur le site mais absentes du catalogue (Adobe, maison…). */
+  const [policesSite, setPolicesSite] = useState<string[]>([]);
+  const [couleursTrouvees, setCouleursTrouvees] = useState(true);
 
   // Ce que les écrans précédents ont récolté remplace les valeurs de départ.
   // Un champ absent reste vide et le dit : une carte qui affiche une valeur
@@ -220,16 +223,32 @@ export default function CharePage() {
     if (!d) { setIgRelie(true); return; }
     setNom(d.name ?? "");
     setIgRelie(d.igConnected !== false);
-    setCh(prev => ({
-      ...prev,
-      logoUrl: d.logoUrl ? `/api/proxy-image?url=${encodeURIComponent(d.logoUrl)}` : null,
-      titre: d.fonts?.[0] ?? prev.titre,
-      texte: d.fonts?.[1] ?? prev.texte,
-      couleurs: d.colors && d.colors.length >= 4 ? d.colors.slice(0, 4) : prev.couleurs,
+    /* Mêmes règles que « Nouveau client » :
+       · une police du site n'est appliquée que si le catalogue la connaît
+         (sinon l'aperçu montrait « Aa » dans une police de repli, et l'éditeur
+         n'aurait pas pu la charger) ; les autres sont nommées à part ;
+       · les couleurs trouvées s'affichent quel que soit leur nombre ; aucune
+         couleur n'est présentée comme un résultat si rien n'a été trouvé
+         (avant, moins de 4 couleurs faisaient afficher les verts de Klip). */
+    const connue = (f?: string) => f ? FAMILLES.find(x => x.toLowerCase() === f.trim().toLowerCase()) : undefined;
+    const trouvees = (d.fonts ?? []).map(connue).filter((f): f is string => !!f);
+    setPolicesSite((d.fonts ?? []).filter(f => !connue(f)));
+    const couleurs = (d.colors ?? []).filter(c => /^#[0-9A-Fa-f]{6}$/.test(c)).slice(0, 4);
+    setCouleursTrouvees(couleurs.length > 0);
+    const logo = d.logoUrl ?? d.igLogo;
+    const prochain: Charte = {
+      ...DEPART,
+      logoUrl: logo ? (logo.startsWith("data:") ? logo : `/api/proxy-image?url=${encodeURIComponent(logo)}`) : null,
+      titre: trouvees[0] ?? DEPART.titre,
+      texte: trouvees[1] ?? trouvees[0] ?? DEPART.texte,
+      couleurs: couleurs.length ? couleurs : DEPART.couleurs,
       description: d.headline ?? d.description ?? "",
       secteur: d.sector ?? "",
       ton: d.tone ?? "",
-    }));
+    };
+    setCh(prochain);
+    // Ce qui s'affiche est ce qui partira dans le client après le paiement.
+    ecrireDraft({ ...d, fonts: [prochain.titre, prochain.texte], ...(couleurs.length ? { colors: couleurs } : {}) });
   }, []);
 
   // Les polices choisies doivent être CHARGÉES pour que l'aperçu dise vrai.
@@ -247,6 +266,7 @@ export default function CharePage() {
   function valider() {
     setCh(brouillon);
     setModale(null);
+    if (modale === "couleurs") setCouleursTrouvees(true);
     const d = lireDraft();
     ecrireDraft({
       ...(d ?? { source: "manuel", prefilled: [] }),
@@ -311,13 +331,15 @@ export default function CharePage() {
             <span style={{ fontFamily: `'${ch.texte}', var(--sans)`, fontSize: 25, color: "var(--ink-2)", lineHeight: 1 }}>Aa</span>
           </span>
           <span className="ch-typo-n"><span>{ch.titre}</span><span>{ch.texte}</span></span>
+          {policesSite.length > 0 && <span className="ch-typo-n" title="Polices de votre site absentes du catalogue">Site : {policesSite.join(", ")}</span>}
           <span className="ch-nom">Typographie</span>
         </button>
 
         <button className="ch-carte" onClick={() => ouvrir("couleurs")}>
           <span className="ch-crayon"><IcCrayon /></span>
           <span className="ch-cols">
-            {ch.couleurs.map((c, i) => <span key={i} className="ch-sw" style={{ background: c }} />)}
+            {!couleursTrouvees && <span className="ch-vide" style={{ gridColumn: "1 / -1" }}>À choisir</span>}
+            {couleursTrouvees && ch.couleurs.map((c, i) => <span key={i} className="ch-sw" style={{ background: c }} />)}
           </span>
           <span className="ch-nom">Couleurs</span>
         </button>

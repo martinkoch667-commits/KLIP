@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback, CSSProperties, Fragment } from "react";
+import { imgSrc, dominantColorsFromImage } from "@/lib/brandPalette";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -563,9 +564,8 @@ export default function NewWorkspacePage() {
   //
   // On échantillonne donc le logo lui-même. Le canvas est disponible ici (côté
   // navigateur), et le proxy évite les soucis d'origine croisée.
-  /** Un SVG en ligne arrive déjà sous forme de data URL : le proxy ne saurait
-   *  pas quoi en faire, et l'image ne s'afficherait pas. */
-  const imgSrc = (url: string) => url.startsWith('data:') ? url : `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  // imgSrc et dominantColorsFromImage vivent dans lib/brandPalette : le parcours
+  // d'essai de la landing lit les couleurs de la même façon.
 
   /** Un logo est-il CLAIR ? On mesure la luminosité moyenne de ses pixels
    *  visibles (le vide d'un PNG transparent ne compte pas). Un logo blanc posé
@@ -597,67 +597,7 @@ export default function NewWorkspacePage() {
     } catch { return false; }
   }
 
-  async function dominantColorsFromImage(url: string, max = 4): Promise<string[]> {
-    try {
-      const img = await new Promise<HTMLImageElement | null>((res) => {
-        const i = new Image();
-        i.crossOrigin = 'anonymous';
-        i.onload = () => res(i);
-        i.onerror = () => res(null);
-        i.src = imgSrc(url);
-      });
-      if (!img) return [];
-      const S = 48;
-      const cv = document.createElement('canvas');
-      cv.width = S; cv.height = S;
-      const ctx = cv.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return [];
-      ctx.drawImage(img, 0, 0, S, S);
-      const data = ctx.getImageData(0, 0, S, S).data;
 
-      // Regroupement par paquets grossiers : sans ça, l'antialiasing produit des
-      // centaines de nuances uniques et rien ne ressort.
-      const buckets = new Map<string, { n: number; r: number; g: number; b: number }>();
-      for (let i = 0; i < data.length; i += 4) {
-        const a = data[i + 3];
-        if (a < 200) continue;                       // un logo transparent : on ignore le vide
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-        const sat = mx === 0 ? 0 : (mx - mn) / mx;
-        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-        // Même exigence que pour le CSS : ni blanc, ni noir, ni gris.
-        if (sat < 0.22 || luma > 0.9 || luma < 0.1) continue;
-        const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
-        const cur = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
-        buckets.set(key, { n: cur.n + 1, r: cur.r + r, g: cur.g + g, b: cur.b + b });
-      }
-      const hex = (n: number) => Math.round(n).toString(16).padStart(2, '0').toUpperCase();
-      const hue = (r: number, g: number, b: number) => {
-        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
-        if (!d) return 0;
-        const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
-        return (h * 60 + 360) % 360;
-      };
-      // Dédoublonnage par TEINTE, comme pour les couleurs du CSS. Sans lui, un
-      // logo monochrome rendait quatre nuances du même vert et remplissait les
-      // trois champs de variantes d'une seule couleur — exactement le défaut
-      // qu'on cherchait à corriger.
-      const out: { hex: string; h: number }[] = [];
-      for (const c of Array.from(buckets.values()).sort((a, b) => b.n - a.n)) {
-        const r = c.r / c.n, g = c.g / c.n, b = c.b / c.n;
-        const h = hue(r, g, b);
-        // 15° et non 28° : le rouge et l'orange d'une même marque ne sont
-        // séparés que d'une quinzaine de degrés (Burger King : #D62300 et
-        // #FF8532). À 28° on n'en gardait qu'un, et Martin cherchait l'autre.
-        if (out.some((o) => { let d = Math.abs(o.h - h); if (d > 180) d = 360 - d; return d < 15; })) continue;
-        out.push({ hex: `#${hex(r)}${hex(g)}${hex(b)}`, h });
-        if (out.length >= max) break;
-      }
-      return out.map((o) => o.hex);
-    } catch {
-      return [];
-    }
-  }
 
   useEffect(() => {
     const src = logoPreview ?? siteLogo;

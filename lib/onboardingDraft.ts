@@ -36,6 +36,10 @@ export type OnbDraft = {
   colors?: string[];
   fonts?: string[];
   logoUrl?: string;
+  /** Relevés sur le compte Instagram relié (photo de profil) : en complément
+   *  des couleurs du site, et en logo de secours. */
+  igColors?: string[];
+  igLogo?: string;
   headline?: string;
   /** Champs devinés par l'analyse — sert à marquer « pré-rempli » à l'écran. */
   prefilled: string[];

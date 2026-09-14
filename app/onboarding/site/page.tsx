@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft, nomDepuisUrl, type OnbDraft } from "@/lib/onboardingDraft";
 import { rangerSecteur, rangerTon, nettoyerNom } from "@/lib/marqueChoix";
+import { paletteDeMarque } from "@/lib/brandPalette";
 
 const ETAPES = [
   "Ouverture de la page",
@@ -92,15 +93,22 @@ export default function SitePage() {
         const secteur = rangerSecteur(d.sector);
         const ton = rangerTon(d.tone);
         const nom = nettoyerNom(d.name) || undefined;
+        /* Même lecture des couleurs que « Nouveau client » : logos d'abord,
+           puis CSS, puis image de partage, puis Instagram s'il est relié. Le
+           CSS seul rendait les couleurs par défaut du thème du site. */
+        const couleurs = await paletteDeMarque({
+          logoCandidates: d.logoCandidates, logoUrl: d.logoUrl, cssColors: d.colors,
+          heroImage: d.heroImage, igColors: lireDraft()?.igColors,
+        });
         draft = {
           source: "site", url,
           name: nom, sector: secteur.secteur || undefined, sectorAutre: secteur.autre || undefined,
           tone: ton || undefined, description: d.description,
-          colors: d.colors, fonts: d.fonts, logoUrl: d.logoUrl, headline: d.description,
+          colors: couleurs, fonts: d.fonts, logoUrl: d.logoUrl, headline: d.description,
           prefilled: [
             nom && "name", secteur.secteur && "sector", ton && "tone", d.description && "description",
-            (d.colors ?? []).length > 0 && "colors", (d.fonts ?? []).length > 0 && "fonts", d.logoUrl && "logo",
-          ].filter((k): k is string => typeof k === "string"),
+            couleurs.length > 0 && "colors", (d.fonts ?? []).length > 0 && "fonts", d.logoUrl && "logo",
+          ].filter((k): k is string => typeof k === "string" && k.length > 0),
         };
       } else {
         // Les deux lectures ont échoué (site injoignable, hors ligne) : on
@@ -115,14 +123,24 @@ export default function SitePage() {
     setEtape(ETAPES.length);
     const apres = suite();
     const avant = lireDraft();
-    ecrireDraft({ ...draft, igConnected: avant?.igConnected, clientId: avant?.clientId, handle: avant?.handle });
+    ecrireDraft({
+      ...draft, igConnected: avant?.igConnected, clientId: avant?.clientId,
+      // Instagram relié : son nom et sa bio restent si le site ne dit rien.
+      handle: avant?.handle, igColors: avant?.igColors, igLogo: avant?.igLogo,
+      logoUrl: draft.logoUrl ?? avant?.igLogo, description: draft.description ?? avant?.description,
+      headline: draft.headline ?? avant?.headline,
+    });
     setTimeout(() => router.push(apres), 450);
   }
 
   function aLaMain() {
     const apres = suite();
     const avant = lireDraft();
-    ecrireDraft({ source: "manuel", prefilled: [], sansSite: true, igConnected: avant?.igConnected, clientId: avant?.clientId, handle: avant?.handle });
+    ecrireDraft({
+      source: "manuel", prefilled: [], sansSite: true, igConnected: avant?.igConnected, clientId: avant?.clientId,
+      handle: avant?.handle, igColors: avant?.igColors, igLogo: avant?.igLogo, logoUrl: avant?.igLogo,
+      colors: avant?.igColors, description: avant?.description, headline: avant?.headline, name: avant?.name,
+    });
     router.push(apres);
   }
 

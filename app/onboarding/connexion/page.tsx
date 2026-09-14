@@ -30,6 +30,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import OnboardingShell, { MotChoisi, CurseurNomme } from "@/components/OnboardingShell";
 import InscriptionOverlay, { ouvrirCompte } from "@/components/InscriptionOverlay";
 import { lireDraft, ecrireDraft, type OnbDraft } from "@/lib/onboardingDraft";
+import { dominantColorsFromImage } from "@/lib/brandPalette";
 
 type Reseau = "instagram" | "facebook";
 
@@ -86,15 +87,32 @@ export default function ConnexionPage() {
       setErreur(ERREURS[code ?? ""] ?? ERREURS.unknown);
       return;
     }
-    // Le nom du compte relié pré-remplit le questionnaire.
+    /* Même lecture que « Nouveau client » au retour d'Instagram : le profil
+       (/api/instagram/profile) donne le nom du compte, la bio (souvent la
+       meilleure description) et la photo de profil, qui EST le logo et dont
+       les couleurs sont celles de la marque. Tout est un bonus : la connexion
+       a réussi, un échec ici n'empêche pas d'avancer. */
     void (async () => {
-      let handle = d?.handle;
+      const suite = { ...base, igConnected: true } as OnbDraft;
       try {
-        const { data } = await createClientComponentClient()
-          .from("workspaces").select("instagram_username").eq("id", ws).maybeSingle();
-        if (data?.instagram_username) handle = data.instagram_username as string;
-      } catch { /* sans lui, le champ reste à remplir */ }
-      ecrireDraft({ ...base, igConnected: true, handle });
+        const res = await fetch(`/api/instagram/profile?workspaceId=${ws}`);
+        const p = res.ok ? await res.json() : null;
+        if (p?.username) { suite.handle = p.username; if (!suite.name) suite.name = p.username; }
+        if (p?.biography && !suite.description) { suite.description = p.biography; suite.headline = p.biography; }
+        if (p?.profile_picture_url) {
+          suite.igLogo = p.profile_picture_url;
+          const cols = await dominantColorsFromImage(p.profile_picture_url, 5);
+          if (cols.length) suite.igColors = cols;
+        }
+      } catch { /* pré-remplissage seulement */ }
+      if (!suite.handle) {
+        try {
+          const { data } = await createClientComponentClient()
+            .from("workspaces").select("instagram_username").eq("id", ws).maybeSingle();
+          if (data?.instagram_username) suite.handle = data.instagram_username as string;
+        } catch { /* le champ restera à remplir */ }
+      }
+      ecrireDraft(suite);
       router.push(etapeSuivante(d));
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps

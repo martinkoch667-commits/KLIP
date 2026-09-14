@@ -75,5 +75,9 @@ export async function POST(request: NextRequest) {
     fonts: site.fonts,
     logoUrl: site.logoUrl,
     iconUrl: site.iconUrl,
+    // Comme /api/brand/analyze : les couleurs se lisent aussi dans les logos
+    // et l'image de partage (lib/brandPalette), pas seulement dans le CSS.
+    logoCandidates: site.logoCandidates,
+    heroImage: site.heroImage,
   });
 }
