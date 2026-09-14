@@ -100,10 +100,12 @@ export default function QuestionnairePage() {
   );
 
   return (
-    <OnboardingShell bas={zoneBasse} chemin="questions">
-      <h1 className="ob-h1">{TITRES[i].titre}</h1>
-      <p className="ob-sub">{TITRES[i].sub}</p>
-
+    <OnboardingShell bas={zoneBasse} chemin="questions" intro={
+      <>
+        <h1 className="ob-h1">{TITRES[i].titre}</h1>
+        <p className="ob-sub">{TITRES[i].sub}</p>
+      </>
+    }>
       {i === 0 && (
         <div className="ob-chips">
           {SECTEURS.map(s => (

@@ -59,7 +59,21 @@ export default function ConnexionPage() {
   }
 
   return (
-    <OnboardingShell chemin="connexion" bas={
+    <OnboardingShell chemin="connexion" intro={
+      <>
+        {/* Le titre dit ce qu'on PRODUIT, le sous-titre dit ce qu'on prend pour
+            le produire. La version précédente (« On part de votre compte / On y
+            lit vos couleurs, vos habitudes… ») décrivait la lecture sans jamais
+            dire à quoi elle sert : on comprenait qu'on nous regardait, pas ce
+            qu'on allait recevoir. */}
+        <h1 className="ob-h1">
+          Vos posts, à&nbsp;votre <MotChoisi>image</MotChoisi>
+        </h1>
+        <p className="ob-sub">
+          Vos couleurs, vos polices, votre mise en page : on les reprend pour composer vos visuels.
+        </p>
+      </>
+    } bas={
       <>
         <button type="button" className="ob-btn ob-btn-ig" onClick={relier}>
           <IcInstagram /> Continuer avec Instagram
@@ -73,18 +87,6 @@ export default function ConnexionPage() {
         </p>
       </>
     }>
-      {/* Le titre dit ce qu'on PRODUIT, le sous-titre dit ce qu'on prend pour
-          le produire. La version précédente (« On part de votre compte / On y
-          lit vos couleurs, vos habitudes… ») décrivait la lecture sans jamais
-          dire à quoi elle sert : on comprenait qu'on nous regardait, pas ce
-          qu'on allait recevoir. */}
-      <h1 className="ob-h1">
-        Vos posts, à&nbsp;votre <MotChoisi>image</MotChoisi>
-      </h1>
-      <p className="ob-sub">
-        Vos couleurs, vos polices, votre mise en page : on les reprend pour composer vos visuels.
-      </p>
-
       {/* Ce que Klip reprend, en curseurs nommés : le vocabulaire de l'éditeur
           (page d'offre, carte Curseurs) dès le premier écran. Ils remplacent les
           stickers, qui parlaient une autre langue que le reste du parcours. */}
@@ -94,7 +96,7 @@ export default function ConnexionPage() {
         <CurseurNomme nom="Votre mise en page" teinte="ambre" style={{ left: "24%", top: "52%", ["--d" as string]: "-2.2s" }} />
       </div>
       <style>{`.cx-curseurs{position:relative;height:118px;max-width:360px;margin:6px auto 0;}
-        @media(max-width:639px){.cx-curseurs{height:128px;margin-top:clamp(18px,5vh,44px);}}`}</style>
+        @media(max-width:639px){.cx-curseurs{height:112px;margin-top:clamp(8px,2.4vh,24px);}}`}</style>
 
       {avertit && (
         <div className="ob-mod-bg" onClick={() => setAvertit(false)}>

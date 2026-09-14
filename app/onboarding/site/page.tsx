@@ -128,8 +128,7 @@ export default function SitePage() {
 
   return (
     <OnboardingShell largeur={520} chemin="votre-site"
-      bas={phase === "ask" ? zoneBasse : null}>
-      {phase === "ask" ? (
+      intro={phase === "ask" ? (
         <>
           {/* Pas de retour à la ligne forcé : le titre se coupe tout seul selon
               la largeur. Un `<br />` écrit pour un écran en casse un autre, et
@@ -145,22 +144,25 @@ export default function SitePage() {
             <MotChoisi>{site.replace(/^https?:\/\//, "").replace(/\/$/, "")}</MotChoisi>
           </h1>
           <p className="ob-sub">Quelques secondes.</p>
-          <ol className="wsx-steps">
-            {ETAPES.map((label, i) => {
-              const state = i < etape ? "done" : i === etape ? "now" : "wait";
-              return (
-                <li key={label} className={`wsx-step is-${state}`}>
-                  <span className="wsx-step-dot">
-                    {state === "done" && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M4 12.5l5 5 11-11" /></svg>
-                    )}
-                  </span>
-                  {label}
-                </li>
-              );
-            })}
-          </ol>
         </>
+      )}
+      bas={phase === "ask" ? zoneBasse : null}>
+      {phase === "searching" && (
+        <ol className="wsx-steps">
+          {ETAPES.map((label, i) => {
+            const state = i < etape ? "done" : i === etape ? "now" : "wait";
+            return (
+              <li key={label} className={`wsx-step is-${state}`}>
+                <span className="wsx-step-dot">
+                  {state === "done" && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M4 12.5l5 5 11-11" /></svg>
+                  )}
+                </span>
+                {label}
+              </li>
+            );
+          })}
+        </ol>
       )}
     </OnboardingShell>
   );

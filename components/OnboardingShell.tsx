@@ -21,9 +21,13 @@
  * dégradé sombre, un fil d'étapes, un sur-titre et un paragraphe d'explication
  * sous chaque titre : chacun annonce un gabarit plutôt qu'un produit.
  *
- * LE CENTRAGE, qui a demandé deux essais. Le logo est sorti du flux (absolu, en
- * haut), la page est une grille centrée sur toute sa hauteur, et un padding
- * haut réserve la place du logo pour que rien ne passe dessous.
+ * LE LOGO EST DANS LA CASE, en onglet de la fenêtre (Martin, 2026-09-14) : posé
+ * au-dessus, il prenait une bande entière sur mobile et poussait les boutons
+ * sous la barre de Safari.
+ *
+ * SUR ORDINATEUR, LA CASE PASSE EN LARGEUR : l'intro (titre, phrase) à gauche,
+ * le formulaire et ses actions à droite. D'où deux emplacements distincts,
+ * `intro` et `children`.
  *
  * MOBILE D'ABORD. C'est là que les gens arriveront depuis la campagne :
  * `100dvh`, une colonne, des cibles d'au moins 54 px, le contenu en haut et
@@ -92,16 +96,11 @@ export const ONB_CSS = `
     /* align-content (et non place-items) : c'est lui qui centre l'ENSEMBLE des
        lignes. Avec place-items, deux enfants se partagent la hauteur. */
     display:grid;align-content:center;justify-items:center;gap:clamp(18px,3vh,26px);
-    padding:clamp(80px,13vh,112px) clamp(18px,5vw,28px) clamp(40px,8vh,72px);}
+    padding:clamp(24px,5vh,48px) clamp(18px,5vw,28px);}
   /* Positionnés SANS z-index : un z-index créait un contexte d'empilement par
      bloc, et la modale, rangée dans le contenu, restait sous d'autres blocs. */
   .ob > *{position:relative;}
 
-  /* C'est le LIEN qui sort du flux, pas seulement l'image : sinon il restait un
-     élément de grille et le contenu se centrait dans la moitié basse. */
-  .ob > .ob-marque{position:absolute;top:clamp(20px,3.4vh,36px);left:50%;transform:translateX(-50%);z-index:2;line-height:0;}
-  .ob-marque img{height:clamp(32px,4.2vh,38px);width:clamp(32px,4.2vh,38px);border-radius:11px;display:block;
-    box-shadow:0 10px 22px -12px rgba(7,33,23,.55);}
   /* ob-corps est le conteneur, ob-in le champ : les deux noms ne doivent plus
      jamais se croiser (ils se cumulaient quand le conteneur s'appelait ob-in). */
   .ob-corps{width:100%;max-width:var(--ob-w,440px);text-align:center;}
@@ -280,6 +279,11 @@ export const ONB_CSS = `
   .ob-case-barre{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;background:#F6F7F8;
     border-bottom:1px solid rgba(16,19,11,.06);}
   .ob-case-barre i{width:10px;height:10px;border-radius:50%;flex:none;}
+  /* L'onglet de la fenêtre porte le logo, comme la favicon d'un vrai site. */
+  .ob-case-onglet{display:inline-flex;align-items:center;gap:6px;height:24px;margin-left:10px;padding:0 10px 0 4px;
+    border-radius:8px;background:#fff;box-shadow:inset 0 0 0 1px rgba(16,19,11,.07),0 2px 6px -3px rgba(16,19,11,.18);
+    font-family:var(--sans);font-size:12.5px;font-weight:800;letter-spacing:-.01em;color:var(--ink);text-decoration:none;}
+  .ob-case-onglet img{width:17px;height:17px;border-radius:5px;display:block;}
   .ob-case-url{margin-left:auto;margin-right:12px;display:inline-flex;align-items:center;gap:5px;
     font-family:var(--sans);font-size:12.5px;font-weight:600;color:#7B7F75;white-space:nowrap;}
   .ob-case-url svg{width:11px;height:11px;fill:currentColor;}
@@ -287,6 +291,7 @@ export const ONB_CSS = `
      reprend une partie à droite pour rester centré dans la CASE. Jamais moins
      de 14 px à gauche : les poignées d'un bloc sélectionné débordent de 12 px. */
   .ob-case-contenu{position:relative;flex:1;display:flex;flex-direction:column;padding:30px 34px 28px 14px;}
+  .ob-case-action{flex:1;display:flex;flex-direction:column;}
   .ob-case .ob-h1{font-size:clamp(30px,8.6vw,40px);}
   .ob-case .ob-sub{margin-bottom:clamp(18px,3vh,26px);}
   /* Les actions, DANS la fenêtre, poussées en bas de la case. */
@@ -299,21 +304,51 @@ export const ONB_CSS = `
     .ob-corps{max-width:var(--ob-w,470px);}
     .ob-h1{font-size:clamp(38px,4.2vw,48px);}
   }
+  /* ══ ORDINATEUR : LA CASE EN LARGEUR ═══════════════════════════════════
+     L'intro à gauche, le formulaire à droite. La case garde une hauteur
+     minimale pour ne pas changer de taille d'une question à l'autre. */
+  @media(min-width:980px){
+    .ob-corps{max-width:1080px;}
+    .ob-case{min-height:clamp(480px,76vh,620px);border-radius:30px;}
+    .ob-case-cadre{margin:40px 0 0 32px;padding:9px 0 0 9px;border-radius:24px 0 0 0;}
+    .ob-case-fenetre{border-radius:15px 0 0 0;}
+    .ob-case-barre{height:40px;padding:0 16px;}
+    .ob-case-onglet{height:27px;font-size:13.5px;padding-right:12px;}
+    .ob-case-onglet img{width:19px;height:19px;}
+    .ob-case-url{font-size:13px;margin-right:18px;}
+    .ob-case-contenu{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr);column-gap:clamp(40px,5vw,72px);
+      align-items:center;padding:40px 64px 44px 44px;text-align:left;}
+    .ob-case-intro .ob-h1{font-size:clamp(42px,3.9vw,54px);margin-bottom:58px;text-wrap:balance;}
+    .ob-case-intro .ob-mot{margin-left:.2em;}
+    .ob-case-intro .ob-sub{margin:0;max-width:30ch;font-size:17px;}
+    .ob-case-action{justify-content:center;}
+    .ob-case-bas{margin-top:0;padding-top:26px;}
+    /* À droite, tout s'aligne sur le bord gauche de la colonne. */
+    .ob-case-action .ob-chips{justify-content:flex-start;}
+    .ob-case-action .ob-fin{text-align:left;}
+    .ob-case-action .ob-input,.ob-case-action .ob-in:not(.ob-ta){text-align:left;}
+    .ob-case-action .ob-pied{justify-content:flex-end;}
+    .ob-case-action .wsx-steps{margin-top:0;}
+    /* La charte a six cartes à ranger : la colonne de droite prend la place. */
+    .ob-case.is-large .ob-case-contenu{grid-template-columns:minmax(0,.62fr) minmax(0,1fr);}
+    .ob-case.is-large .ob-case-intro .ob-h1{font-size:clamp(38px,3.3vw,46px);}
+  }
+
   /* ══ MOBILE ═════════════════════════════════════════════════════════════
      Trois décisions propres au téléphone : le contenu MONTE sous le logo,
      l'action DESCEND sous le pouce (safe-area comprise), le titre GROSSIT. */
   @media(max-width:639px){
-    .ob{padding:clamp(76px,12vh,96px) 20px 18px;}
+    .ob{padding:12px 12px 12px;}
     .ob-h1{font-size:clamp(34px,10vw,44px);}
     .ob-sel-cadre{inset:-7px;}
     .ob-sel-rot{bottom:-40px;}
     .ob-h1{margin-bottom:48px;}
     .ob-sub{font-size:16px;max-width:30ch;}
 
-    /* La case REMPLIT l'écran sous le logo, et ses actions se calent en bas de
-       la case, sous le pouce. */
-    .ob{align-content:start;padding-bottom:max(16px,env(safe-area-inset-bottom));}
-    .ob-case{min-height:calc(100dvh - clamp(76px,12vh,96px) - max(16px,env(safe-area-inset-bottom)));}
+    /* La case REMPLIT l'écran, et ses actions se calent en bas de la case,
+       sous le pouce. */
+    .ob{align-content:start;padding-bottom:max(12px,env(safe-area-inset-bottom));}
+    .ob-case{min-height:calc(100dvh - 12px - max(12px,env(safe-area-inset-bottom)));}
 
 
     .ob-blocs{grid-template-columns:1fr;gap:16px;}
@@ -329,9 +364,11 @@ export const ONB_CSS = `
 `;
 
 export default function OnboardingShell({
-  children, largeur, bas, chemin,
+  children, intro, largeur, bas, chemin,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  /** Titre et phrase : en haut sur mobile, colonne gauche sur ordinateur. */
+  intro?: React.ReactNode;
   largeur?: number;
   /** Zone d'action, rangée DANS la fenêtre et poussée en bas de la case. */
   bas?: React.ReactNode;
@@ -341,21 +378,24 @@ export default function OnboardingShell({
   return (
     <div className="ob" style={largeur ? ({ ["--ob-w" as string]: `${largeur}px` }) : undefined}>
       <style dangerouslySetInnerHTML={{ __html: ONB_CSS }} />
-      <Link href="/" className="ob-marque"><img src="/icon-192.png" alt="Klip" /></Link>
       <div className="ob-corps">
-        <div className="ob-case">
+        <div className={"ob-case" + (largeur && largeur >= 600 ? " is-large" : "")}>
           <div className="ob-case-cadre">
             <div className="ob-case-fenetre">
-              <div className="ob-case-barre" aria-hidden="true">
+              <div className="ob-case-barre">
                 <i style={{ background: "#EE6A5F" }} /><i style={{ background: "#F5BD4F" }} /><i style={{ background: "#61C454" }} />
-                <span className="ob-case-url">
+                <Link href="/" className="ob-case-onglet" aria-label="Klip, accueil"><img src="/icon-192.png" alt="" />Klip</Link>
+                <span className="ob-case-url" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="2.4" /></svg>
                   getklip.fr{chemin ? `/${chemin}` : ""}
                 </span>
               </div>
               <div className="ob-case-contenu">
-                <div className="ob-case-haut">{children}</div>
-                {bas && <div className="ob-case-bas">{bas}</div>}
+                {intro && <div className="ob-case-intro">{intro}</div>}
+                <div className="ob-case-action">
+                  <div className="ob-case-haut">{children}</div>
+                  {bas && <div className="ob-case-bas">{bas}</div>}
+                </div>
               </div>
             </div>
           </div>

@@ -274,21 +274,23 @@ export default function CharePage() {
   const langue = LANGUES.find(l => l.code === ch.langue) ?? LANGUES[0];
 
   return (
-    <OnboardingShell largeur={620} chemin="charte" bas={
+    <OnboardingShell largeur={620} chemin="charte" intro={
+      <>
+        <h1 className="ob-h1">
+          {nom ? <>La charte de <MotChoisi>{nom}</MotChoisi></> : <>Votre <MotChoisi>charte</MotChoisi></>}
+        </h1>
+        <p className="ob-sub">
+          {igRelie === false
+            ? "Lue sur votre site seulement. Touchez une carte pour corriger."
+            : "Touchez une carte pour corriger."}
+        </p>
+      </>
+    } bas={
       <button className="ob-btn ob-btn-leaf" onClick={() => router.push("/onboarding/offre")}>
         Générer mes visuels
       </button>
     }>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-
-      <h1 className="ob-h1">
-        {nom ? <>La charte de <MotChoisi>{nom}</MotChoisi></> : <>Votre <MotChoisi>charte</MotChoisi></>}
-      </h1>
-      <p className="ob-sub">
-        {igRelie === false
-          ? "Lue sur votre site seulement. Touchez une carte pour corriger."
-          : "Touchez une carte pour corriger."}
-      </p>
 
       <div className="ch-grille">
         <button className="ch-carte" onClick={() => ouvrir("logo")}>
