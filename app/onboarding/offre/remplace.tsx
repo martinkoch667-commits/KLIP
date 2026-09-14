@@ -85,7 +85,11 @@ function useVu<T extends Element>(): [React.RefObject<T>, boolean] {
       if (ents.some(e => e.isIntersecting)) { setVu(true); io.disconnect(); }
     }, { threshold: 0.35 });
     io.observe(el);
-    return () => io.disconnect();
+    /* Filet de sécurité : un tampon ou des icônes qui attendent l'observateur
+       restent invisibles s'il ne se déclenche jamais (onglet en arrière-plan,
+       aperçu, capture). Au bout de six secondes on les montre de toute façon. */
+    const secours = setTimeout(() => setVu(true), 6000);
+    return () => { io.disconnect(); clearTimeout(secours); };
   }, []);
   return [ref, vu];
 }
@@ -195,9 +199,9 @@ function Fusion({ prix, fmt }: Props) {
   return (
     <div ref={ref} className={"rt-fusion" + (vu ? " is-vu" : "")}>
       <div className="rt-fusion-scene">
-        <div className="rt-fusion-pile">
+        <div className="rt-fusion-grille">
           {outils.map((o, i) => (
-            <span key={o.nom} className="rt-fusion-case" style={{ ["--i" as string]: i, zIndex: outils.length - i }}>
+            <span key={o.nom} className="rt-fusion-case" style={{ ["--i" as string]: i }}>
               <IconeOutil outil={o} taille={40} />
             </span>
           ))}
@@ -326,8 +330,9 @@ export const REMPLACE_CSS = `
   .rt-ticket-klip{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--leaf);color:var(--leaf-ink);}
   .rt-ticket-klip .rt-ticket-points{border-color:rgba(30,51,23,.25);}
   .rt-ticket-prix.is-klip{font-size:15.5px;}
-  /* Au milieu, sur les pointillés : posé à droite, il cachait le prix de Canva. */
-  .rt-tampon{position:absolute;left:50%;top:44%;translate:-50% -50%;display:flex;flex-direction:column;align-items:center;
+  /* Sur les pointillés, entre les noms et les prix : posé à droite il cachait le
+     prix de Canva, au centre il mangeait les noms. */
+  .rt-tampon{position:absolute;left:62%;top:44%;translate:-50% -50%;display:flex;flex-direction:column;align-items:center;
     padding:9px 16px 10px;border:3px solid var(--vio);border-radius:12px;color:var(--vio);
     background:rgba(255,254,247,.72);rotate:-12deg;scale:1.6;opacity:0;
     transition:scale .45s cubic-bezier(.2,1.6,.4,1) .5s,opacity .2s .5s;}
@@ -338,13 +343,14 @@ export const REMPLACE_CSS = `
   /* ── 3. Fusion ──────────────────────────────────────────────────────── */
   .rt-fusion{background:var(--card);border-radius:18px;padding:26px 24px 24px;
     box-shadow:0 0 0 1px var(--line-2),0 40px 80px -40px rgba(16,19,11,.45);}
-  .rt-fusion-scene{display:flex;align-items:center;justify-content:center;gap:12px;}
-  .rt-fusion-pile{display:flex;align-items:center;padding-left:14px;}
-  /* Les icônes arrivent en éventail puis se resserrent en pile. */
-  .rt-fusion-case{display:inline-flex;margin-left:-14px;border-radius:11px;box-shadow:0 0 0 3px var(--card),0 8px 16px -8px rgba(16,19,11,.4);
-    rotate:calc((var(--i) - 2.5) * 3deg);translate:calc((var(--i) - 2.5) * 14px) 0;opacity:0;
-    transition:translate .6s cubic-bezier(.2,.9,.3,1) calc(var(--i) * 70ms),opacity .3s calc(var(--i) * 70ms),rotate .6s calc(var(--i) * 70ms);}
-  .rt-fusion.is-vu .rt-fusion-case{opacity:1;translate:0 0;}
+  .rt-fusion-scene{display:flex;align-items:center;justify-content:center;gap:14px;}
+  /* Une grille et non une pile : en se chevauchant, les icônes ne montraient
+     plus qu'un bord chacune et on ne reconnaissait que Canva. */
+  .rt-fusion-grille{display:grid;grid-template-columns:repeat(3,40px);gap:7px;}
+  .rt-fusion-case{display:inline-flex;border-radius:11px;box-shadow:0 6px 14px -8px rgba(16,19,11,.45);
+    translate:0 8px;scale:.8;opacity:0;
+    transition:translate .45s cubic-bezier(.2,1.4,.4,1) calc(var(--i) * 60ms),scale .45s cubic-bezier(.2,1.4,.4,1) calc(var(--i) * 60ms),opacity .25s calc(var(--i) * 60ms);}
+  .rt-fusion.is-vu .rt-fusion-case{opacity:1;translate:0 0;scale:1;}
   .rt-fusion-fleche{display:inline-flex;color:var(--ink-3);}
   .rt-fusion-klip{display:inline-flex;border-radius:17px;box-shadow:0 0 0 6px rgba(189,242,160,.55),0 22px 34px -16px rgba(30,51,23,.6);
     scale:.6;opacity:0;transition:scale .5s cubic-bezier(.2,1.6,.4,1) .55s,opacity .25s .55s;}
