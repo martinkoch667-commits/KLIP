@@ -131,6 +131,10 @@ const CSS = `
   .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;padding-bottom:2px;}
   .pv-tete.is-cote .pv-lead{margin:0;font-size:15.5px;line-height:1.45;max-width:30ch;}
   .pv-tete.is-cote .pv-periode{margin-top:14px;}
+  /* La colonne de droite est étroite : sans ça, « 2 mois offerts » passait sur
+     deux lignes et gonflait la pastille. */
+  .pv-tete.is-cote .pv-periode button{padding:8px 13px;white-space:nowrap;}
+  .pv-deux{white-space:nowrap;}
   .pv-surtitre{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;padding:6px 13px 6px 6px;border-radius:999px;
     background:var(--leaf-soft);color:var(--leaf-ink);font-weight:800;font-size:13px;}
   .pv-surtitre-coche{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--leaf-ink);color:var(--leaf);}
