@@ -5,14 +5,17 @@
  * qui lance l'analyse tout de suite (`/onboarding/site?site=…`) : la personne
  * voit ses couleurs et ses polices avant d'avoir créé quoi que ce soit.
  *
- * QUATRE PROPOSITIONS à départager, comme pour les cases du parcours :
+ * QUATRE FORMES, CHACUNE EN VERT ET EN VIOLET (Martin a demandé les deux
+ * couleurs), à départager comme les cases du parcours :
  *  · Barre       une seule gélule, champ et bouton dedans ;
  *  · Calque      le champ est un calque sélectionné (cadre et poignées de la
  *                sélection du hero), avec son étiquette « Votre site web » ;
  *  · Navigateur  une barre d'adresse, qui annonce la fenêtre du parcours ;
- *  · Bouton      le bouton vert d'aujourd'hui, qui s'ouvre en champ au clic.
+ *  · Curseur     un bouton simple « Votre site web » visé par le curseur
+ *                « Vous », qui s'ouvre en champ au clic.
+ * La couleur ne touche que des variables (--cs-*) : bouton, accents, cadre.
  * Le sélecteur n'apparaît pas sur getklip.fr. Choix gardé dans l'onglet
- * (sessionStorage) et forçable par `?cta=`. Il est rendu dans <body> : le hero
+ * (sessionStorage) et forçable par `?cta=` et `?couleur=`. Il est rendu dans <body> : le hero
  * anime ses blocs en transform, et un `position: fixed` dans un parent
  * transformé se colle à ce parent au lieu de l'écran.
  *
@@ -25,15 +28,21 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 
-export type VarianteCta = 'barre' | 'calque' | 'navigateur' | 'bouton';
+export type VarianteCta = 'barre' | 'calque' | 'navigateur' | 'curseur';
+export type CouleurCta = 'vert' | 'violet';
 
 const VARIANTES: { id: VarianteCta; nom: string }[] = [
   { id: 'barre', nom: 'Barre' },
   { id: 'calque', nom: 'Calque' },
   { id: 'navigateur', nom: 'Navigateur' },
-  { id: 'bouton', nom: 'Bouton' },
+  { id: 'curseur', nom: 'Curseur' },
+];
+const COULEURS: { id: CouleurCta; nom: string }[] = [
+  { id: 'vert', nom: 'Vert' },
+  { id: 'violet', nom: 'Violet' },
 ];
 const CLE = 'klip_cta_hero';
+const CLE_COULEUR = 'klip_cta_hero_couleur';
 
 function Fleche({ size = 17 }: { size?: number }) {
   return (
@@ -65,13 +74,20 @@ function nettoyer(v: string) {
 const ADRESSE = /^[^\s./]+(\.[^\s./]+)+(\/\S*)?$/;
 
 const CSS = `
-  .cs{position:relative;}
+  /* Les deux couleurs, en variables : le reste du style est commun. */
+  .cs{position:relative;
+    --cs-fond:#BDF2A0;--cs-fond-survol:#C9F5B2;--cs-texte:#1E3317;--cs-ombre:rgba(120,190,90,.55);
+    --cs-accent:#BDF2A0;--cs-anneau:rgba(189,242,160,.16);--cs-tag:#BDF2A0;--cs-tag-texte:#1E3317;--cs-focus-clair:#1FA878;}
+  .cs.is-violet{
+    --cs-fond:linear-gradient(180deg,#7B6CF0 0%,#5A4AD1 100%);--cs-fond-survol:linear-gradient(180deg,#8778F5 0%,#6353DA 100%);
+    --cs-texte:#FFFFFF;--cs-ombre:rgba(90,74,209,.7);
+    --cs-accent:#8C7DFF;--cs-anneau:rgba(140,125,255,.24);--cs-tag:#6656D9;--cs-tag-texte:#FFFFFF;--cs-focus-clair:#6656D9;}
   .cs input{font-family:var(--sans);font-size:16px;font-weight:650;border:none;outline:none;background:none;min-width:0;}
   /* Bouton vert maison, sans .btn (voir l'en-tête). */
   .v3 .cs-go{display:inline-flex;align-items:center;justify-content:center;gap:9px;flex:none;white-space:nowrap;
-    font-family:var(--sans);font-weight:800;font-size:15.5px;letter-spacing:-.01em;color:var(--leaf-ink);background:var(--leaf);
-    border-radius:999px;box-shadow:0 16px 32px -16px rgba(120,190,90,.55);transition:background .2s,transform .12s;}
-  .v3 .cs-go:hover{background:#C9F5B2;}
+    font-family:var(--sans);font-weight:800;font-size:15.5px;letter-spacing:-.01em;color:var(--cs-texte);background:var(--cs-fond);
+    border-radius:999px;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 16px 32px -16px var(--cs-ombre);transition:transform .12s;}
+  .v3 .cs-go:hover{background:var(--cs-fond-survol);}
   .v3 .cs-go:active{transform:scale(.97);}
   .v3 .cs-go .cs-arr{display:inline-flex;transition:transform .22s;}
   .v3 .cs-go:hover .cs-arr{transform:translate(2px,-2px);}
@@ -85,7 +101,7 @@ const CSS = `
   /* ── Barre ── */
   .cs-barre{display:flex;align-items:center;gap:10px;width:min(100%,540px);height:66px;padding:7px 7px 7px 20px;border-radius:999px;
     background:rgba(241,240,229,.06);box-shadow:inset 0 0 0 1.5px var(--line-f),0 24px 44px -26px rgba(0,0,0,.7);transition:box-shadow .2s;}
-  .cs-barre:focus-within{box-shadow:inset 0 0 0 2px var(--leaf),0 0 0 5px rgba(189,242,160,.14),0 24px 44px -26px rgba(0,0,0,.7);}
+  .cs-barre:focus-within{box-shadow:inset 0 0 0 2px var(--cs-accent),0 0 0 5px var(--cs-anneau),0 24px 44px -26px rgba(0,0,0,.7);}
   .cs-barre .cs-ic{display:inline-flex;color:var(--cream-3);}
   .cs-barre input{flex:1;height:100%;color:var(--cream);}
   .cs-barre input::placeholder{color:var(--cream-3);font-weight:500;}
@@ -94,13 +110,14 @@ const CSS = `
   /* ── Calque ── */
   .cs-calque{display:flex;align-items:center;gap:30px;margin-top:22px;}
   .cs-calque .sel{display:block;}
+  .cs-calque .sel-frame,.cs-calque .sel-h,.cs-calque .sel-p{border-color:var(--cs-accent);}
   .cs-calque-champ{display:flex;align-items:center;gap:10px;width:min(64vw,350px);height:62px;padding:0 20px;border-radius:14px;
     background:#fff;box-shadow:0 26px 50px -24px rgba(0,0,0,.65);}
   .cs-calque-champ .cs-ic{display:inline-flex;color:var(--ink-3);}
   .cs-calque-champ input{flex:1;height:100%;color:var(--ink);font-size:17px;}
   .cs-calque-champ input::placeholder{color:#A3A69B;font-weight:500;}
   /* L'étiquette du calque, comme le nom d'un élément dans Figma. */
-  .cs-tag{position:absolute;left:-10px;bottom:calc(100% + 16px);padding:3px 9px;border-radius:6px;background:var(--vio);color:#fff;
+  .cs-tag{position:absolute;left:-10px;bottom:calc(100% + 16px);padding:3px 9px;border-radius:6px;background:var(--cs-tag);color:var(--cs-tag-texte);
     font-family:var(--sans);font-size:12px;font-weight:800;letter-spacing:.01em;white-space:nowrap;}
   .v3 .cs-calque .cs-go{height:60px;padding:0 26px;font-size:16px;}
 
@@ -111,31 +128,42 @@ const CSS = `
   .cs-nav-points i{width:11px;height:11px;border-radius:50%;}
   .cs-nav-url{flex:1;display:flex;align-items:center;gap:6px;height:50px;padding:0 14px;border-radius:12px;background:#F3F4F6;color:#8A8D7D;
     min-width:0;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .2s,background .2s;}
-  .cs-nav-url:focus-within{background:#fff;box-shadow:inset 0 0 0 2px var(--mint-2);}
+  .cs-nav-url:focus-within{background:#fff;box-shadow:inset 0 0 0 2px var(--cs-focus-clair);}
   .cs-nav-proto{font-family:var(--sans);font-size:16px;font-weight:500;color:#A3A69B;}
   .cs-nav-url input{flex:1;height:100%;color:var(--ink);}
   .cs-nav-url input::placeholder{color:#A3A69B;font-weight:500;}
   .v3 .cs-nav .cs-go{height:50px;padding:0 20px;border-radius:12px;box-shadow:none;}
 
-  /* ── Bouton qui s'ouvre ── */
+  /* ── Curseur : bouton simple visé par « Vous », qui s'ouvre en champ ── */
   .cs-bouton{display:flex;align-items:center;justify-content:flex-end;height:60px;width:252px;border-radius:999px;
     transition:width .5s cubic-bezier(.2,.9,.25,1),background .3s,box-shadow .3s,padding .5s;}
   .cs-bouton input{width:0;flex:0 1 0;opacity:0;height:100%;color:var(--cream);transition:opacity .25s;}
   .cs-bouton input::placeholder{color:var(--cream-3);font-weight:500;}
   .v3 .cs-bouton .cs-go{height:60px;padding:0 27px;font-size:16px;width:100%;transition:width .5s cubic-bezier(.2,.9,.25,1),height .3s,background .2s;}
   .cs-bouton.is-ouvert{width:min(100%,520px);padding:6px 6px 6px 22px;background:rgba(241,240,229,.06);
-    box-shadow:inset 0 0 0 2px var(--leaf),0 0 0 5px rgba(189,242,160,.12);}
+    box-shadow:inset 0 0 0 2px var(--cs-accent),0 0 0 5px var(--cs-anneau);}
   .cs-bouton.is-ouvert input{flex:1;opacity:1;transition:opacity .3s .2s;}
   .v3 .cs-bouton.is-ouvert .cs-go{width:auto;height:48px;padding:0 20px;font-size:15.5px;}
+  /* Le curseur « Vous » des cartes du parcours, posé sous le bouton. */
+  .cs-vous{position:absolute;right:-44px;bottom:-34px;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;
+    animation:cs-flotte 3.2s ease-in-out infinite alternate;}
+  .cs-vous svg{width:20px;height:20px;fill:var(--cs-accent);stroke:#fff;stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));}
+  .cs-vous span{margin:1px 0 0 13px;padding:3px 10px;border-radius:9px;background:var(--cs-tag);color:var(--cs-tag-texte);
+    font-family:var(--sans);font-size:13px;font-weight:750;white-space:nowrap;box-shadow:0 8px 16px -8px rgba(0,0,0,.5);}
+  @keyframes cs-flotte{from{translate:0 0;}to{translate:-5px -4px;}}
+  @media (prefers-reduced-motion: reduce){ .cs-vous{animation:none;} }
 
   /* ── Sélecteur de propositions (hors getklip.fr), rendu hors de .v3 ── */
-  .cs-choix{position:fixed;left:18px;bottom:18px;z-index:1500;display:flex;align-items:center;gap:4px;
+  .cs-choix{position:fixed;left:18px;bottom:18px;z-index:1500;display:flex;align-items:center;flex-wrap:wrap;gap:4px;
     padding:5px;border-radius:999px;background:#10130B;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 18px 40px -12px rgba(0,0,0,.6);
     font-family:'early-sans-variable','Hanken Grotesk',system-ui,sans-serif;}
   .cs-choix span{padding:0 10px 0 12px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(241,240,229,.5);}
   .cs-choix button{height:32px;padding:0 13px;border:none;border-radius:999px;cursor:pointer;background:none;
     font:inherit;font-size:13px;font-weight:700;color:rgba(241,240,229,.8);}
-  .cs-choix button.is-on{background:#BDF2A0;color:#1E3317;}
+  .cs-choix button.is-on{background:#F1F0E5;color:#10130B;}
+  .cs-choix button.is-vert.is-on{background:#BDF2A0;color:#1E3317;}
+  .cs-choix button.is-violet.is-on{background:#6656D9;color:#fff;}
+  .cs-choix i{width:1px;height:20px;margin:0 4px;background:rgba(241,240,229,.18);}
 
   @media(max-width:640px){
     .cs-long{display:none;} .cs-court{display:inline;}
@@ -151,7 +179,8 @@ const CSS = `
     .cs-bouton{width:100%;}
     .cs-bouton.is-ouvert{width:100%;padding-left:16px;}
     .cs-aide{white-space:normal;}
-    .cs-choix{left:50%;bottom:12px;transform:translateX(-50%);}
+    .cs-choix{left:12px;right:12px;bottom:12px;justify-content:center;border-radius:20px;}
+    .cs-vous{right:14px;bottom:-30px;}
     .cs-choix span{display:none;}
     .cs-choix button{padding:0 10px;font-size:12.5px;}
   }
@@ -160,6 +189,7 @@ const CSS = `
 export default function CtaSiteHero() {
   const router = useRouter();
   const [variante, setVariante] = useState<VarianteCta>('barre');
+  const [couleur, setCouleur] = useState<CouleurCta>('vert');
   const [choix, setChoix] = useState(false);
   const [site, setSite] = useState('');
   const [aide, setAide] = useState(false);
@@ -169,11 +199,14 @@ export default function CtaSiteHero() {
   useEffect(() => {
     const hote = location.hostname.replace(/^www\./, '');
     setChoix(hote !== 'getklip.fr');
-    const demande = new URLSearchParams(location.search).get('cta');
+    const q = new URLSearchParams(location.search);
     let garde: string | null = null;
-    try { garde = sessionStorage.getItem(CLE); } catch { /* navigation privée */ }
-    const v = VARIANTES.find(x => x.id === (demande || garde));
+    let gardeCouleur: string | null = null;
+    try { garde = sessionStorage.getItem(CLE); gardeCouleur = sessionStorage.getItem(CLE_COULEUR); } catch { /* navigation privée */ }
+    const v = VARIANTES.find(x => x.id === (q.get('cta') || garde));
     if (v) setVariante(v.id);
+    const c = COULEURS.find(x => x.id === (q.get('couleur') || gardeCouleur));
+    if (c) setCouleur(c.id);
   }, []);
 
   function choisir(v: VarianteCta) {
@@ -183,9 +216,15 @@ export default function CtaSiteHero() {
     try { sessionStorage.setItem(CLE, v); } catch { /* navigation privée */ }
   }
 
+  function teinter(c: CouleurCta) {
+    setCouleur(c);
+    try { sessionStorage.setItem(CLE_COULEUR, c); } catch { /* navigation privée */ }
+  }
+  const teinte = couleur === 'violet' ? ' is-violet' : '';
+
   function valider(e: React.FormEvent) {
     e.preventDefault();
-    if (variante === 'bouton' && !ouvert) {
+    if (variante === 'curseur' && !ouvert) {
       setOuvert(true);
       champ.current?.focus({ preventScroll: true });
       return;
@@ -222,7 +261,7 @@ export default function CtaSiteHero() {
   let formulaire: React.ReactNode;
   if (variante === 'barre') {
     formulaire = (
-      <form className="cs cs-barre" onSubmit={valider} noValidate>
+      <form className={'cs cs-barre' + teinte} onSubmit={valider} noValidate>
         <span className="cs-ic"><Globe /></span>
         <input {...saisie} />
         <button type="submit" className="cs-go">
@@ -234,7 +273,7 @@ export default function CtaSiteHero() {
     );
   } else if (variante === 'calque') {
     formulaire = (
-      <form className="cs cs-calque" onSubmit={valider} noValidate>
+      <form className={'cs cs-calque' + teinte} onSubmit={valider} noValidate>
         <span className="sel in">
           <span className="cs-calque-champ">
             <span className="cs-ic"><Globe /></span>
@@ -260,7 +299,7 @@ export default function CtaSiteHero() {
     );
   } else if (variante === 'navigateur') {
     formulaire = (
-      <form className="cs cs-nav" onSubmit={valider} noValidate>
+      <form className={'cs cs-nav' + teinte} onSubmit={valider} noValidate>
         <span className="cs-nav-points" aria-hidden="true">
           <i style={{ background: '#EE6A5F' }} /><i style={{ background: '#F5BD4F' }} /><i style={{ background: '#61C454' }} />
         </span>
@@ -278,11 +317,17 @@ export default function CtaSiteHero() {
     );
   } else {
     formulaire = (
-      <form className={'cs cs-bouton' + (ouvert ? ' is-ouvert' : '')} onSubmit={valider} noValidate>
+      <form className={'cs cs-bouton' + teinte + (ouvert ? ' is-ouvert' : '')} onSubmit={valider} noValidate>
         <input {...saisie} tabIndex={ouvert ? 0 : -1} aria-hidden={!ouvert} />
         <button type="submit" className="cs-go">
           {ouvert ? 'Analyser' : 'Votre site web'} <span className="cs-arr"><Fleche size={18} /></span>
         </button>
+        {!ouvert && (
+          <span className="cs-vous" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 2.5 21 10l-8.2 2.3L10 21 3 2.5Z" /></svg>
+            <span>Vous</span>
+          </span>
+        )}
         {aideSousChamp}
       </form>
     );
@@ -295,6 +340,12 @@ export default function CtaSiteHero() {
       {choix && createPortal(
         <div className="cs-choix" role="group" aria-label="Propositions de CTA">
           <span>CTA</span>
+          {COULEURS.map(c => (
+            <button key={c.id} type="button" className={`is-${c.id}` + (couleur === c.id ? ' is-on' : '')} onClick={() => teinter(c.id)}>
+              {c.nom}
+            </button>
+          ))}
+          <i aria-hidden="true" />
           {VARIANTES.map(v => (
             <button key={v.id} type="button" className={variante === v.id ? 'is-on' : ''} onClick={() => choisir(v.id)}>
               {v.nom}
