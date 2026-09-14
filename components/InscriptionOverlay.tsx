@@ -153,7 +153,6 @@ const IO_CSS = `
   @media(max-width:480px){
     .io-fond{padding:20px 24px;}
     .io-carte{max-width:344px;border-radius:24px;}
-    .io-carte .fx-scene{height:50cqw;}
     .io-corps{padding:0 18px 18px;}
     .io-h{font-size:21px;}
     .io-p{font-size:13.5px;margin:6px 0 14px;}
