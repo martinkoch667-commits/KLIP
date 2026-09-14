@@ -6,7 +6,9 @@
  * diagonale, les offres sur la partie claire, une grille de posts inclinée sur
  * la partie sombre. Sous 1100 px la diagonale ne tient plus : on empile.
  *
- * « KLIP REMPLACE TOUT ÇA » est la carte Fusion (remplace.tsx), posée sur la
+ * « KLIP REMPLACE TOUT ÇA » est une carte (remplace.tsx) à trois propositions,
+ * départagées par un sélecteur visible partout sauf sur getklip.fr (?c= dans
+ * l'adresse). Elle est posée sur la
  * zone sombre en desktop. En mobile elle ouvre la page, à cheval sur le bas du
  * bandeau : c'est l'argument qu'on veut lire avant les prix, pas après.
  *
@@ -36,7 +38,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
-import Fusion, { FUSION_CSS } from "./remplace";
+import CarteOutils, { CARTE_CSS, CARTES, type Carte } from "./remplace";
 
 /* Assez de cases pour REMPLIR la grille inclinée, qui déborde de l'écran : à
    150 px sur une zone d'environ 1100 × 1400 px, il en faut une cinquantaine. */
@@ -89,6 +91,14 @@ const CSS = `
   .pv-remplace-large{position:absolute;top:50%;right:clamp(28px,3.2vw,64px);translate:0 -50%;z-index:3;
     width:min(380px,29vw);}
   .pv-remplace-mobile{display:none;}
+
+  /* ── Sélecteur de carte (aperçu seulement) ───────────────────────────── */
+  .pv-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
+    display:flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:var(--ink);
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.5);max-width:calc(100vw - 24px);}
+  .pv-choix-lib{padding:0 8px 0 10px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.5);}
+  .pv .pv-choix button{padding:8px 13px;border-radius:999px;font-weight:800;font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;}
+  .pv .pv-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
 
   /* ── La partie claire ────────────────────────────────────────────────── */
   .pv-marque{position:absolute;top:28px;left:clamp(24px,4vw,56px);z-index:4;line-height:0;}
@@ -213,6 +223,7 @@ const CSS = `
        sous les cartes, on ne la voyait qu'après avoir fait défiler les trois
        offres. Martin la veut avant les prix. */
     .pv-remplace-mobile{display:block;position:relative;width:100%;max-width:420px;margin:-84px auto 36px;text-align:left;}
+    .pv.a-choix .pv-clair{padding-bottom:96px;}
     .pv-marque{top:18px;left:20px;}
     .pv-marque img{box-shadow:0 4px 14px rgba(0,0,0,.35);}
     .pv-clair{width:100%;max-width:none;min-height:0;align-items:center;text-align:center;
@@ -257,12 +268,20 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const [periode, setPeriode] = useState<"monthly" | "yearly">("yearly");
   const [nom, setNom] = useState("");
   const [visuels, setVisuels] = useState<string[]>([]);
+  const [carte, setCarte] = useState<Carte>("curseurs");
+  /* Le sélecteur sert à départager les cartes : il n'a rien à faire devant un
+     vrai visiteur. Décidé après montage, `location` n'existant pas au rendu
+     serveur. */
+  const [apercu, setApercu] = useState(false);
 
   // Même règle que la landing : sans compte connu, l'offre reste ouverte.
   const lancement = launchApplies(periode) && (seatsLeft === null || seatsLeft > 0);
   const annuel = periode === "yearly";
 
   useEffect(() => {
+    setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
+    const c = new URLSearchParams(location.search).get("c");
+    if (CARTES.some(x => x.cle === c)) setCarte(c as Carte);
     setNom(lireDraft()?.name ?? "");
     // Les visuels déposés par Martin prennent la place des cases grises.
     fetch("/api/vitrine")
@@ -288,6 +307,14 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     return annuel ? tp("billedYear", { total: fmt(o.annuel * 12) }) : tp("billedMonth");
   }
 
+  function choisir(c: Carte) {
+    setCarte(c);
+    // Dans l'adresse, pour pouvoir envoyer une carte précise en lien.
+    const url = new URL(location.href);
+    url.searchParams.set("c", c);
+    history.replaceState(null, "", url);
+  }
+
   /* Le prix Studio TEL QUE LA CARTE L'AFFICHE, période et remise comprises :
      c'est lui qu'on oppose à la pile d'outils. */
   const studioAffiche = annuel ? PLANS.solo.priceYearly : PLANS.solo.priceMonthly;
@@ -310,8 +337,8 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     : Array<string>(NB_CASES).fill("");
 
   return (
-    <div className="pv">
-      <style dangerouslySetInnerHTML={{ __html: CSS + FUSION_CSS }} />
+    <div className={"pv" + (apercu ? " a-choix" : "")}>
+      <style dangerouslySetInnerHTML={{ __html: CSS + CARTE_CSS }} />
 
       <div className="pv-sombre" aria-hidden="true">
         <div className="pv-mur">
@@ -325,14 +352,14 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
       </div>
 
       <div className="pv-remplace-large">
-        <Fusion prix={prixStudio} fmt={fmt} />
+        <CarteOutils carte={carte} prix={prixStudio} fmt={fmt} />
       </div>
 
       <Link href="/" className="pv-marque"><img src="/icon-192.png" alt="Klip" /></Link>
 
       <div className="pv-clair">
         <div className="pv-remplace-mobile">
-          <Fusion prix={prixStudio} fmt={fmt} />
+          <CarteOutils carte={carte} prix={prixStudio} fmt={fmt} />
         </div>
 
         <div className="pv-tete">
@@ -392,6 +419,17 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
           <b>0 € aujourd&apos;hui.</b> Premier prélèvement dans {TRIAL_DAYS} jours, annulable en un clic.
         </p>
       </div>
+
+      {apercu && (
+        <div className="pv-choix" role="group" aria-label="Carte des outils">
+          <span className="pv-choix-lib">Carte</span>
+          {CARTES.map(x => (
+            <button key={x.cle} type="button" className={carte === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
+              {x.nom}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
