@@ -2,16 +2,20 @@
 
 /* Socle des écrans du parcours d'essai : connexion, site, questionnaire, charte.
  *
- * LA DIRECTION ARTISTIQUE est celle de la page d'offre et de sa carte
- * « Curseurs », étendue au parcours entier à la demande de Martin (2026-09-14) :
- * fond clair sous un halo VERT, titres en casse normale au léger relief, mot
- * clé SÉLECTIONNÉ comme dans l'éditeur (cadre violet, poignées carrées),
- * étiquettes aux coins arrondis avec liseré, cartes blanches à ombre verte,
- * curseurs nommés.
+ * CHAQUE ÉCRAN TIENT DANS UNE CASE, verrouillée par Martin le 2026-09-14 parmi
+ * quatre idées : la « Fenêtre », tirée de la carte « Curseurs » de la page
+ * d'offre. Halo vert en L, fenêtre de navigateur décalée et coupée par les
+ * bords, adresse qui suit l'écran. TOUT est dedans, titre, champs, boutons et
+ * mentions : rien ne flotte à côté.
  *
- * LE VERT EST LA COULEUR DE KLIP, le violet n'est qu'un accent : celui de la
- * sélection dans l'éditeur, comme sur la landing. Une première version peignait
- * les halos en violet ; Martin l'a rappelé à l'ordre.
+ * LE FOND DE PAGE EST BLANC PUR et sobre : le vert ne vit que dans la case.
+ * LE VERT EST LA COULEUR DE KLIP, le violet n'est qu'un accent, celui de la
+ * sélection dans l'éditeur.
+ *
+ * LE MOT CLÉ SÉLECTIONNÉ reprend EXACTEMENT la sélection du hero de la landing
+ * (« OUTIL ») : carte blanche penchée en Oaks condensé capitales, cadre violet,
+ * poignées rondes aux coins et en gélule au milieu des côtés, bouton de
+ * rotation dessous, léger balancement.
  *
  * CE QUI A ÉTÉ RETIRÉ, et pourquoi. La première version empilait un fond
  * dégradé sombre, un fil d'étapes, un sur-titre et un paragraphe d'explication
@@ -26,30 +30,29 @@
  * l'action collée en bas, sous le pouce.
  */
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 
-/* ── La case ─────────────────────────────────────────────────────────────────
-   Martin veut chaque écran du parcours DANS une case, sur la base de la carte
-   « Curseurs » de la page d'offre, parfois plus sobre pour ne pas gêner la
-   lecture. Quatre idées à départager (2026-09-14), de la plus expressive à la
-   plus sobre ; un sélecteur, absent de getklip.fr, passe de l'une à l'autre et
-   le choix suit la personne d'écran en écran. */
-export type CaseStyle = "fenetre" | "sobre" | "halo" | "panneau";
-export const CASES: { cle: CaseStyle; nom: string }[] = [
-  { cle: "fenetre", nom: "Fenêtre" },
-  { cle: "sobre", nom: "Sobre" },
-  { cle: "halo", nom: "Halo" },
-  { cle: "panneau", nom: "Panneau" },
-];
-const CLE_CASE = "klip_onb_case";
-
-/** Où l'on en est : l'adresse de la fenêtre, le libellé du panneau, la barre. */
-export type Etape = { chemin: string; libelle: string; progression: number };
-
-/** Le mot clé d'un titre, sélectionné comme un calque dans l'éditeur. */
+/** Le mot clé d'un titre, sélectionné comme le « OUTIL » du hero de la landing
+ *  (composant `Sel` de landing-v3) : même carte, mêmes poignées, même rotation. */
 export function MotChoisi({ children }: { children: React.ReactNode }) {
-  return <span className="ob-mot">{children}</span>;
+  return (
+    <span className="ob-mot">
+      <span className="ob-mot-carte">{children}</span>
+      <span className="ob-sel-cadre" aria-hidden="true">
+        <i className="ob-sel-h" style={{ top: -7, left: -7 }} />
+        <i className="ob-sel-h" style={{ top: -7, right: -7 }} />
+        <i className="ob-sel-h" style={{ bottom: -7, left: -7 }} />
+        <i className="ob-sel-h" style={{ bottom: -7, right: -7 }} />
+        <i className="ob-sel-p" style={{ top: -5, left: "50%", marginLeft: -11, width: 22, height: 9 }} />
+        <i className="ob-sel-p" style={{ bottom: -5, left: "50%", marginLeft: -11, width: 22, height: 9 }} />
+        <i className="ob-sel-p" style={{ left: -5, top: "50%", marginTop: -11, width: 9, height: 22 }} />
+        <i className="ob-sel-p" style={{ right: -5, top: "50%", marginTop: -11, width: 9, height: 22 }} />
+      </span>
+      <span className="ob-sel-rot" aria-hidden="true">
+        <span><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.9-6.2M20 3v4h-4" /></svg></span>
+      </span>
+    </span>
+  );
 }
 
 /** Un curseur nommé : la flèche, puis l'étiquette. */
@@ -64,24 +67,20 @@ export function CurseurNomme({ nom, teinte, className, style }: {
   );
 }
 
-/* Les poignées carrées d'une sélection, dessinées en fond sur un pseudo-élément
-   pour ne pas ajouter quatre éléments à chaque mot ou carte sélectionnés.
-   Calques blancs d'abord (ils passent devant), carrés violets ensuite. */
-const POIGNEES = `
+/* Les poignées RONDES de la sélection de la landing (blanc, contour violet),
+   dessinées en fond sur un pseudo-élément pour ne pas ajouter quatre éléments
+   à chaque bloc ou carte sélectionnés. */
+export const POIGNEES = `
     background:
-      linear-gradient(#fff,#fff) 2px 2px/7px 7px no-repeat,
-      linear-gradient(#fff,#fff) calc(100% - 2px) 2px/7px 7px no-repeat,
-      linear-gradient(#fff,#fff) 2px calc(100% - 2px)/7px 7px no-repeat,
-      linear-gradient(#fff,#fff) calc(100% - 2px) calc(100% - 2px)/7px 7px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 0 0/11px 11px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 100% 0/11px 11px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 0 100%/11px 11px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 100% 100%/11px 11px no-repeat;`;
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 0 0/14px 14px no-repeat,
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 100% 0/14px 14px no-repeat,
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 0 100%/14px 14px no-repeat,
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 100% 100%/14px 14px no-repeat;`;
 
 export const ONB_CSS = `
   .ob{
-    /* Fond BLANC pur sous les dégradés, et des gris neutres : le #F4F5F1 d'avant
-       tirait sur le beige (Martin, 2026-09-14). */
+    /* Fond BLANC pur et gris neutres : le #F4F5F1 d'avant tirait sur le beige
+       (Martin, 2026-09-14). */
     --fond:#FFFFFF; --carte:#FFFFFF; --creux:#F3F4F6;
     --ink:#10130B; --ink-2:#50544A; --ink-3:#8A8D7D;
     --vio:#6656D9; --ombre:rgba(12,49,35,.28);
@@ -94,42 +93,44 @@ export const ONB_CSS = `
        lignes. Avec place-items, deux enfants se partagent la hauteur. */
     display:grid;align-content:center;justify-items:center;gap:clamp(18px,3vh,26px);
     padding:clamp(80px,13vh,112px) clamp(18px,5vw,28px) clamp(40px,8vh,72px);}
-  /* Le halo vert en haut de page, qui s'éteint avant le titre : forest sous le
-     logo, menthe ensuite, puis le fond. Même dégradé que la carte Curseurs, à
-     l'échelle de l'écran. */
-  /* 60vh et non 40 : plus court, le fondu s'arrêtait net et laissait un trait
-     gris visible sous le sous-titre. */
-  .ob::before{content:"";position:absolute;left:0;right:0;top:0;height:clamp(340px,60vh,620px);z-index:0;pointer-events:none;
-    background:
-      radial-gradient(60% 70% at 50% -22%,#072117 0%,#13603F 36%,transparent 72%),
-      linear-gradient(180deg,#2FBF84 0%,#9BE3B5 38%,rgba(217,248,199,.6) 66%,transparent 100%);}
-  /* Positionnés SANS z-index : ils passent devant le halo par l'ordre du
-     document. Un z-index ici créait un contexte d'empilement par bloc, et la
-     modale, rangée dans le contenu, restait sous la zone des boutons. */
+  /* Positionnés SANS z-index : un z-index créait un contexte d'empilement par
+     bloc, et la modale, rangée dans le contenu, restait sous d'autres blocs. */
   .ob > *{position:relative;}
 
   /* C'est le LIEN qui sort du flux, pas seulement l'image : sinon il restait un
      élément de grille et le contenu se centrait dans la moitié basse. */
   .ob > .ob-marque{position:absolute;top:clamp(20px,3.4vh,36px);left:50%;transform:translateX(-50%);z-index:2;line-height:0;}
   .ob-marque img{height:clamp(32px,4.2vh,38px);width:clamp(32px,4.2vh,38px);border-radius:11px;display:block;
-    box-shadow:0 0 0 3px rgba(255,255,255,.35),0 10px 22px -10px rgba(7,33,23,.6);}
+    box-shadow:0 10px 22px -12px rgba(7,33,23,.55);}
   /* ob-corps est le conteneur, ob-in le champ : les deux noms ne doivent plus
      jamais se croiser (ils se cumulaient quand le conteneur s'appelait ob-in). */
   .ob-corps{width:100%;max-width:var(--ob-w,440px);text-align:center;}
-  .ob-bas{width:100%;max-width:var(--ob-w,440px);text-align:center;}
-  .ob-visuel{display:none;}
 
   /* ── Titres ─────────────────────────────────────────────────────────── */
-  /* Casse normale et léger relief, comme le titre du document de la carte. */
-  /* Interligne 1.2 : le cadre du mot sélectionné déborde de 6 px et ses
-     poignées de 12, à 1.08 il touchait la ligne du dessus. */
-  .ob-h1{font-family:var(--heavy);font-weight:800;text-transform:none;letter-spacing:-.04em;line-height:1.2;
+  /* Casse normale et léger relief. Interligne 1.36 et 54 px dessous : la carte
+     du mot sélectionné est plus haute que la ligne, son cadre déborde de 10 px
+     et le bouton de rotation pend de 46 px sous le mot. */
+  .ob-h1{font-family:var(--heavy);font-weight:800;text-transform:none;letter-spacing:-.04em;line-height:1.36;
     color:#1D2019;text-shadow:0 3px 12px rgba(16,19,11,.12);
-    font-size:clamp(32px,7.4vw,44px);margin:0 0 16px;text-wrap:balance;}
-  /* Le mot sélectionné. Marges latérales : le cadre est décalé de 6 px et
-     mangerait l'espace avec les mots voisins. */
-  .ob-mot{position:relative;display:inline-block;margin:0 .16em;outline:2px solid var(--vio);outline-offset:6px;border-radius:2px;}
-  .ob-mot::after{content:"";position:absolute;inset:-13.5px;pointer-events:none;${POIGNEES}}
+    font-size:clamp(32px,7.4vw,44px);margin:0 0 54px;text-wrap:balance;}
+
+  /* Le mot sélectionné : la sélection du hero de la landing, à l'identique. */
+  .ob-mot{position:relative;display:inline-block;margin:0 .14em;rotate:-3deg;z-index:2;text-shadow:none;
+    animation:ob-balance 5.5s ease-in-out 1.2s infinite;}
+  @keyframes ob-balance{0%,100%{rotate:-3deg;}50%{rotate:-1deg;}}
+  .ob-mot-carte{display:inline-flex;align-items:center;background:#fff;border-radius:.18em;padding:.06em .22em .1em;
+    font-family:var(--oaks-c,'oaks-condensed'),Georgia,serif;font-weight:700;text-transform:uppercase;letter-spacing:.01em;
+    line-height:1;color:var(--ink);font-size:1.08em;
+    box-shadow:0 0 0 1px rgba(16,19,11,.07),0 24px 50px -22px rgba(16,19,11,.42);}
+  .ob-sel-cadre{position:absolute;inset:-10px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;}
+  .ob-sel-cadre i{position:absolute;display:block;background:#fff;border:2px solid var(--vio);box-shadow:0 2px 6px rgba(16,19,11,.18);box-sizing:border-box;}
+  .ob-sel-h{width:13px;height:13px;border-radius:50%;}
+  .ob-sel-p{border-radius:999px;}
+  .ob-sel-rot{position:absolute;left:50%;bottom:-46px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;}
+  .ob-sel-rot::before{content:"";width:2px;height:18px;background:var(--vio);}
+  .ob-sel-rot span{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--vio);display:grid;place-items:center;
+    color:var(--ink);box-shadow:0 3px 8px rgba(16,19,11,.2);}
+  .ob-sel-rot svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
   .ob-sub{font-family:var(--sans);font-size:clamp(14.5px,3.9vw,16.5px);line-height:1.5;
     color:var(--ink-2);margin:0 auto clamp(22px,4vh,34px);max-width:34ch;text-wrap:pretty;}
 
@@ -200,7 +201,7 @@ export const ONB_CSS = `
      la boîte qu'on sélectionne. Un outline suivait l'arrondi et laissait les
      poignées flotter à côté des coins. */
   .ob-bloc.is-on::before{content:"";position:absolute;inset:-6px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;}
-  .ob-bloc.is-on::after{content:"";position:absolute;inset:-10.5px;pointer-events:none;${POIGNEES}}
+  .ob-bloc.is-on::after{content:"";position:absolute;inset:-12px;pointer-events:none;${POIGNEES}}
   .ob-bloc-l{font-family:var(--sans);font-weight:800;font-size:15px;color:var(--ink);}
   .ob-bloc-d{font-family:var(--sans);font-size:12.5px;color:var(--ink-3);margin-top:2px;line-height:1.4;}
 
@@ -236,7 +237,7 @@ export const ONB_CSS = `
     box-shadow:inset 0 0 0 1px rgba(16,19,11,.06),0 18px 36px -26px var(--ombre);}
   .ob .wsx-step.is-now .wsx-step-dot{background:var(--leaf);box-shadow:0 0 0 5px rgba(189,242,160,.4);}
 
-  /* ── Modale : carte blanche coiffée du halo ─────────────────────────── */
+  /* ── Modale : carte blanche, halo vert discret en tête ──────────────── */
   .ob-mod-bg{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
     padding:20px;background:rgba(7,20,14,.46);animation:obFond .16s ease-out;}
   .ob-mod{width:100%;max-width:440px;border-radius:28px;padding:clamp(24px,6vw,32px);text-align:center;
@@ -257,78 +258,36 @@ export const ONB_CSS = `
      Pas de transform, de filter ni de mask sur la case ou ses parents : ils
      font d'un élément le repère des enfants en position fixe, et les modales
      (connexion, charte) se retrouveraient enfermées dans la case. */
-  .ob-corps.a-case{max-width:calc(var(--ob-w,440px) + 56px);}
-  .ob-case{position:relative;width:100%;border-radius:28px;overflow:hidden;background:#fff;text-align:center;
-    box-shadow:0 0 0 1px rgba(16,19,11,.06),0 40px 80px -40px rgba(7,33,23,.45);}
-  .ob-case-cadre{position:relative;}
-  .ob-case-fenetre{position:relative;overflow:hidden;background:#fff;}
-  .ob-case-barre,.ob-case-entete{display:none;}
-  .ob-case-contenu{position:relative;padding:28px 24px 30px;}
-  .ob-case .ob-h1{font-size:clamp(30px,8.6vw,40px);}
-  .ob-case .ob-sub{margin-bottom:clamp(18px,3vh,26px);}
-
-  /* La barre de navigateur, commune aux deux fenêtres. */
-  .ob-case-barre{align-items:center;gap:6px;height:34px;padding:0 14px;background:#F6F7F8;
-    border-bottom:1px solid rgba(16,19,11,.06);}
-  .ob-case-barre i{width:10px;height:10px;border-radius:50%;flex:none;}
-  .ob-case-url{margin-left:auto;margin-right:12px;display:inline-flex;align-items:center;gap:5px;
-    font-family:var(--sans);font-size:12.5px;font-weight:600;color:#7B7F75;white-space:nowrap;}
-  .ob-case-url svg{width:11px;height:11px;fill:currentColor;}
-
-  /* 1. FENÊTRE : la carte Curseurs. Halo vert en L, fenêtre décalée et coupée
-     par les bords droit et bas, liseré de verre en haut et à gauche. Sans le
-     curseur « Vous » posé sur le liseré : sur mobile il cachait les pastilles
-     de la barre, et la case se lit mieux sans. */
-  .ob-case.is-fenetre::before{content:"";position:absolute;inset:0;pointer-events:none;
+  .ob-corps{max-width:calc(var(--ob-w,440px) + 56px);}
+  .ob-case{position:relative;display:flex;flex-direction:column;width:100%;border-radius:28px;overflow:hidden;
+    background:#fff;text-align:center;box-shadow:0 0 0 1px rgba(16,19,11,.06),0 40px 80px -40px rgba(7,33,23,.45);}
+  /* Le halo vert en L : fort en haut, il longe le bord gauche puis s'éteint. */
+  .ob-case::before{content:"";position:absolute;inset:0;pointer-events:none;
     background:
       linear-gradient(180deg,rgba(255,255,255,0) 26%,#fff 70%),
       radial-gradient(70% 42% at 55% -6%,#072117 0%,#13603F 40%,transparent 72%),
       linear-gradient(90deg,#2FBF84 0%,#8BE3B5 8%,transparent 20%),
       linear-gradient(180deg,#3DC98E 0%,#C9F3DC 26%,transparent 50%);}
-  .ob-case.is-fenetre .ob-case-cadre{margin:34px 0 0 24px;padding:8px 0 0 8px;border-radius:22px 0 0 0;
-    background:rgba(255,255,255,.34);box-shadow:inset 1px 1px 0 rgba(255,255,255,.5);}
-  .ob-case.is-fenetre .ob-case-fenetre{border-radius:14px 0 0 0;box-shadow:0 0 30px -12px rgba(7,33,23,.25);}
-  .ob-case.is-fenetre .ob-case-barre{display:flex;}
-  /* La fenêtre est décalée de 32 px à gauche et coupée à droite : le contenu
-     en reprend une partie à droite pour rester à peu près centré dans la CASE.
-     Jamais moins de 14 px à gauche : les poignées d'un bloc sélectionné
-     débordent de 11 px et la fenêtre les rognerait. */
-  .ob-case.is-fenetre .ob-case-contenu{padding:26px 34px 30px 14px;}
-
-  /* 2. SOBRE : la même fenêtre, sans halo ni décalage. Blanche et centrée, le
-     seul rappel de marque est le liseré vert sous la barre. */
-  .ob-case.is-sobre .ob-case-barre{display:flex;background:#fff;box-shadow:inset 0 -2px 0 rgba(189,242,160,.9);border-bottom:none;}
-
-  /* 3. HALO : pas de barre, une lueur verte au coin haut gauche et une autre,
-     plus tendre, en haut à droite. Le contenu reste sur du blanc. */
-  .ob-case.is-halo::before{content:"";position:absolute;inset:0;pointer-events:none;
-    background:
-      radial-gradient(55% 30% at 0% 0%,rgba(31,168,120,.42),transparent 72%),
-      radial-gradient(45% 24% at 100% 0%,rgba(189,242,160,.55),transparent 70%);}
-  .ob-case.is-halo .ob-case-contenu{padding-top:34px;}
-
-  /* 4. PANNEAU : un panneau de l'éditeur. En-tête gris clair avec l'étape et la
-     progression, rien d'autre. Le plus sobre des quatre. */
-  .ob-case.is-panneau{border-radius:22px;}
-  .ob-case.is-panneau .ob-case-entete{display:flex;align-items:center;gap:12px;padding:12px 18px;background:#F7F8F9;
+  /* La fenêtre, décalée et coupée par les bords droit et bas, avec son liseré
+     de verre en haut et à gauche. */
+  .ob-case-cadre{position:relative;flex:1;display:flex;flex-direction:column;margin:34px 0 0 24px;padding:8px 0 0 8px;
+    border-radius:22px 0 0 0;background:rgba(255,255,255,.34);box-shadow:inset 1px 1px 0 rgba(255,255,255,.5);}
+  .ob-case-fenetre{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden;background:#fff;
+    border-radius:14px 0 0 0;box-shadow:0 0 30px -12px rgba(7,33,23,.25);}
+  .ob-case-barre{display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;background:#F6F7F8;
     border-bottom:1px solid rgba(16,19,11,.06);}
-  .ob-case-etape{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:12.5px;font-weight:800;
-    letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;}
-  .ob-case-etape svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linejoin:round;}
-  .ob-case-piste{flex:1;height:6px;border-radius:999px;background:#E9EBEE;overflow:hidden;}
-  .ob-case-piste span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1FA878,#BDF2A0);}
-
-
-  /* Sélecteur de case (aperçu seulement). */
-  .ob.a-choix{padding-bottom:84px;}
-  .ob-choix{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));translate:-50% 0;z-index:50;
-    display:flex;align-items:center;gap:3px;padding:4px;border-radius:999px;background:#10130B;
-    box-shadow:0 18px 40px -12px rgba(0,0,0,.5);max-width:calc(100vw - 24px);}
-  .ob-choix-lib{padding:0 8px 0 10px;font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.06em;
-    text-transform:uppercase;color:rgba(255,255,255,.5);}
-  .ob-choix button{border:none;background:none;cursor:pointer;padding:8px 12px;border-radius:999px;font-family:var(--sans);
-    font-weight:800;font-size:13px;color:rgba(255,255,255,.8);white-space:nowrap;}
-  .ob-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
+  .ob-case-barre i{width:10px;height:10px;border-radius:50%;flex:none;}
+  .ob-case-url{margin-left:auto;margin-right:12px;display:inline-flex;align-items:center;gap:5px;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;color:#7B7F75;white-space:nowrap;}
+  .ob-case-url svg{width:11px;height:11px;fill:currentColor;}
+  /* La fenêtre est décalée de 32 px à gauche et coupée à droite : le contenu en
+     reprend une partie à droite pour rester centré dans la CASE. Jamais moins
+     de 14 px à gauche : les poignées d'un bloc sélectionné débordent de 12 px. */
+  .ob-case-contenu{position:relative;flex:1;display:flex;flex-direction:column;padding:30px 34px 28px 14px;}
+  .ob-case .ob-h1{font-size:clamp(30px,8.6vw,40px);}
+  .ob-case .ob-sub{margin-bottom:clamp(18px,3vh,26px);}
+  /* Les actions, DANS la fenêtre, poussées en bas de la case. */
+  .ob-case-bas{margin-top:auto;padding-top:clamp(20px,3vh,28px);}
 
   @media (prefers-reduced-motion: reduce){ .ob-curseur{animation:none;} }
 
@@ -343,17 +302,16 @@ export const ONB_CSS = `
   @media(max-width:639px){
     .ob{padding:clamp(76px,12vh,96px) 20px 18px;}
     .ob-h1{font-size:clamp(34px,10vw,44px);}
-    .ob-mot{outline-offset:5px;}
-    .ob-mot::after{inset:-12.5px;}
+    .ob-sel-cadre{inset:-7px;}
+    .ob-sel-rot{bottom:-40px;}
+    .ob-h1{margin-bottom:48px;}
     .ob-sub{font-size:16px;max-width:30ch;}
 
-    .ob-adeux{grid-template-rows:1fr auto;align-content:stretch;place-items:stretch;}
-    /* Pas de overflow ici : il découpait net les ombres portées. */
-    .ob-adeux .ob-corps{align-self:start;padding-top:clamp(14px,4vh,42px);margin-inline:auto;}
-    .ob-adeux .ob-bas{align-self:end;width:100%;max-width:var(--ob-w,440px);margin-inline:auto;
-      padding-bottom:env(safe-area-inset-bottom,0px);}
+    /* La case REMPLIT l'écran sous le logo, et ses actions se calent en bas de
+       la case, sous le pouce. */
+    .ob{align-content:start;padding-bottom:max(16px,env(safe-area-inset-bottom));}
+    .ob-case{min-height:calc(100dvh - clamp(76px,12vh,96px) - max(16px,env(safe-area-inset-bottom)));}
 
-    .ob-visuel{display:block;}
 
     .ob-blocs{grid-template-columns:1fr;gap:16px;}
     .ob-champ{flex-direction:column;}
@@ -362,84 +320,44 @@ export const ONB_CSS = `
     .ob-pied .ob-retour{order:1;}
 
     .ob-case{border-radius:24px;}
-    .ob-case-contenu{padding:24px 18px 26px;}
-    .ob-case.is-fenetre .ob-case-cadre{margin:28px 0 0 16px;padding:6px 0 0 6px;}
-    .ob-case.is-fenetre .ob-case-contenu{padding:22px 22px 26px 12px;}
-    .ob-choix-lib{display:none;}
-    .ob-choix button{padding:8px 10px;font-size:12.5px;}
+    .ob-case-cadre{margin:28px 0 0 16px;padding:6px 0 0 6px;}
+    .ob-case-contenu{padding:26px 22px 20px 12px;}
   }
 `;
 
 export default function OnboardingShell({
-  children, largeur, bas, etape,
+  children, largeur, bas, chemin,
 }: {
   children: React.ReactNode;
   largeur?: number;
-  /** Zone d'action. Sur mobile elle se DÉTACHE du contenu et se colle en bas de
-   *  l'écran, sous le pouce ; sur grand écran elle suit le contenu. */
+  /** Zone d'action, rangée DANS la fenêtre et poussée en bas de la case. */
   bas?: React.ReactNode;
-  /** L'écran dans le parcours : adresse de la fenêtre, libellé du panneau. */
-  etape?: Etape;
+  /** L'adresse affichée dans la barre de la fenêtre : getklip.fr/<chemin>. */
+  chemin?: string;
 }) {
-  const [caseStyle, setCaseStyle] = useState<CaseStyle>("fenetre");
-  /* Décidé après montage : `location` et `sessionStorage` n'existent pas au
-     rendu serveur. */
-  const [apercu, setApercu] = useState(false);
-
-  useEffect(() => {
-    setApercu(!/(^|\.)getklip\.fr$/.test(location.hostname));
-    const dansAdresse = new URLSearchParams(location.search).get("case");
-    let garde: string | null = null;
-    try { garde = sessionStorage.getItem(CLE_CASE); } catch { /* navigation privée */ }
-    const choix = [dansAdresse, garde].find(c => CASES.some(x => x.cle === c));
-    if (choix) setCaseStyle(choix as CaseStyle);
-  }, []);
-
-  function choisir(c: CaseStyle) {
-    setCaseStyle(c);
-    try { sessionStorage.setItem(CLE_CASE, c); } catch { /* navigation privée */ }
-  }
-
   return (
-    <div className={"ob" + (bas ? " ob-adeux" : "") + (apercu ? " a-choix" : "")}
-      style={largeur ? ({ ["--ob-w" as string]: `${largeur}px` }) : undefined}>
+    <div className="ob" style={largeur ? ({ ["--ob-w" as string]: `${largeur}px` }) : undefined}>
       <style dangerouslySetInnerHTML={{ __html: ONB_CSS }} />
       <Link href="/" className="ob-marque"><img src="/icon-192.png" alt="Klip" /></Link>
-      <div className="ob-corps a-case">
-        <div className={`ob-case is-${caseStyle}`}>
-          <div className="ob-case-entete">
-            <span className="ob-case-etape">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5Z" /><path d="M3 13l9 5 9-5" /></svg>
-              {etape?.libelle ?? "Klip"}
-            </span>
-            <span className="ob-case-piste"><span style={{ width: `${Math.round((etape?.progression ?? 0) * 100)}%` }} /></span>
-          </div>
+      <div className="ob-corps">
+        <div className="ob-case">
           <div className="ob-case-cadre">
             <div className="ob-case-fenetre">
               <div className="ob-case-barre" aria-hidden="true">
                 <i style={{ background: "#EE6A5F" }} /><i style={{ background: "#F5BD4F" }} /><i style={{ background: "#61C454" }} />
                 <span className="ob-case-url">
                   <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="2.4" /></svg>
-                  getklip.fr{etape ? `/${etape.chemin}` : ""}
+                  getklip.fr{chemin ? `/${chemin}` : ""}
                 </span>
               </div>
-              <div className="ob-case-contenu">{children}</div>
+              <div className="ob-case-contenu">
+                <div className="ob-case-haut">{children}</div>
+                {bas && <div className="ob-case-bas">{bas}</div>}
+              </div>
             </div>
           </div>
         </div>
       </div>
-      {bas && <div className="ob-bas">{bas}</div>}
-
-      {apercu && (
-        <div className="ob-choix" role="group" aria-label="Style de la case">
-          <span className="ob-choix-lib">Case</span>
-          {CASES.map(x => (
-            <button key={x.cle} type="button" className={caseStyle === x.cle ? "is-on" : ""} onClick={() => choisir(x.cle)}>
-              {x.nom}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

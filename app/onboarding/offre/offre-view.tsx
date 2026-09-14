@@ -56,6 +56,23 @@ function Fleche({ className }: { className: string }) {
   );
 }
 
+/** Le cadre de sélection de la landing (composant `Sel`) : quatre poignées
+ *  rondes aux coins, quatre en gélule au milieu des côtés. */
+function Poignees() {
+  return (
+    <span className="pv-sel-cadre" aria-hidden="true">
+      <span className="pv-sel-h" style={{ top: -7, left: -7 }} />
+      <span className="pv-sel-h" style={{ top: -7, right: -7 }} />
+      <span className="pv-sel-h" style={{ bottom: -7, left: -7 }} />
+      <span className="pv-sel-h" style={{ bottom: -7, right: -7 }} />
+      <span className="pv-sel-p" style={{ top: -5, left: "50%", marginLeft: -11, width: 22, height: 9 }} />
+      <span className="pv-sel-p" style={{ bottom: -5, left: "50%", marginLeft: -11, width: 22, height: 9 }} />
+      <span className="pv-sel-p" style={{ left: -5, top: "50%", marginTop: -11, width: 9, height: 22 }} />
+      <span className="pv-sel-p" style={{ right: -5, top: "50%", marginTop: -11, width: 9, height: 22 }} />
+    </span>
+  );
+}
+
 const CSS = `
   /* Jetons de la landing (.v3) pour les cartes de prix, et ceux de la carte
      Curseurs pour le reste (violets, étiquettes). */
@@ -120,19 +137,25 @@ const CSS = `
   .pv-h1 .pv-l{display:block;white-space:nowrap;}
   /* .26em entre les lignes : le cadre du mot sélectionné déborde de 8 px, et à
      .14em il venait toucher la ligne du dessus. */
-  .pv-h1 .pv-l + .pv-l{margin-top:.26em;}
+  .pv-h1 .pv-l + .pv-l{margin-top:.36em;}
   .pv-tete-droite{display:flex;flex-direction:column;align-items:flex-start;}
   .pv-lead{margin:0;color:var(--ink-2);font-size:15.5px;line-height:1.5;max-width:30ch;text-wrap:pretty;}
 
-  /* Le mot sélectionné : cadre violet et poignées carrées de l'éditeur. */
-  /* margin-left = décalage du cadre + un vrai espace : sinon le cadre mange
-     l'espace et colle au mot d'avant (« à » devant « créer »). */
-  .pv-mot{--o:8px;position:relative;display:inline-block;margin-left:calc(var(--o) + .08em);outline:2px solid var(--vio);outline-offset:var(--o);border-radius:2px;}
-  .pv-mot i{position:absolute;width:11px;height:11px;background:#fff;border:2px solid var(--vio);border-radius:2px;}
-  .pv-mot i:nth-of-type(1){top:calc(-1 * var(--o) - 5.5px);left:calc(-1 * var(--o) - 5.5px);}
-  .pv-mot i:nth-of-type(2){top:calc(-1 * var(--o) - 5.5px);right:calc(-1 * var(--o) - 5.5px);}
-  .pv-mot i:nth-of-type(3){bottom:calc(-1 * var(--o) - 5.5px);left:calc(-1 * var(--o) - 5.5px);}
-  .pv-mot i:nth-of-type(4){bottom:calc(-1 * var(--o) - 5.5px);right:calc(-1 * var(--o) - 5.5px);}
+  /* Le mot sélectionné : la sélection du hero de la landing (« OUTIL »), à
+     l'identique, comme dans tout le parcours d'essai. Carte blanche penchée en
+     Oaks condensé, cadre violet, poignées rondes et en gélule, bouton de
+     rotation dessous, léger balancement. */
+  .pv-mot{position:relative;display:inline-block;margin-left:.16em;rotate:-3deg;z-index:2;text-shadow:none;
+    animation:pv-balance 5.5s ease-in-out 1.2s infinite;}
+  @keyframes pv-balance{0%,100%{rotate:-3deg;}50%{rotate:-1deg;}}
+  .pv-mot-carte{display:inline-flex;align-items:center;background:#fff;border-radius:.18em;padding:.06em .22em .1em;
+    font-family:var(--oaks-c,'oaks-condensed'),Georgia,serif;font-weight:700;text-transform:uppercase;letter-spacing:.01em;
+    line-height:1;color:var(--ink);font-size:1.08em;box-shadow:0 0 0 1px rgba(16,19,11,.07),0 24px 50px -22px rgba(16,19,11,.42);}
+  .pv-sel-rot{position:absolute;left:50%;bottom:-46px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;}
+  .pv-sel-rot::before{content:"";width:2px;height:18px;background:var(--vio);}
+  .pv-sel-rot span{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--vio);display:grid;place-items:center;
+    color:var(--ink);box-shadow:0 3px 8px rgba(16,19,11,.2);}
+  .pv-sel-rot svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
 
   /* Curseurs nommés de la page, mêmes couleurs que ceux de la carte. */
   .pv-curseur{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;
@@ -148,7 +171,7 @@ const CSS = `
      cartes. « créer » s'arrête assez tôt sur la ligne pour qu'il reste loin de
      l'étiquette de Studio ; à droite du mot, il tombait sur le choix de
      période. */
-  .pv-mot .pv-curseur{left:calc(100% + 2px);top:calc(100% + 6px);}
+  .pv-mot .pv-curseur{left:calc(100% + 8px);top:calc(100% + 4px);rotate:3deg;}
 
   /* Sélecteur de période : pastille de verre. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:16px;padding:5px;
@@ -177,15 +200,16 @@ const CSS = `
     background:radial-gradient(120% 70% at 50% -12%,#17402E 0%,var(--forest) 62%);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 40px 80px -40px rgba(7,33,23,.7);}
 
-  /* Le cadre de sélection de l'offre mise en avant : poignées carrées. */
+  /* Le cadre de sélection de l'offre mise en avant : celui de la landing,
+     poignées rondes aux coins et en gélule au milieu des côtés. */
   .pv-sel{position:relative;display:flex;flex:1;min-width:0;}
   /* Cadre droit autour d'une carte arrondie, poignées sur ses coins : c'est la
      sélection de l'éditeur, qui encadre la boîte et pas la forme. */
   .pv-sel-cadre{position:absolute;inset:-10px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;z-index:2;}
-  .pv-sel-h{position:absolute;width:12px;height:12px;background:#fff;border:2px solid var(--vio);border-radius:3px;
-    box-shadow:0 2px 6px rgba(16,19,11,.18);}
-  .pv-sel-h:nth-child(1){top:-7px;left:-7px;} .pv-sel-h:nth-child(2){top:-7px;right:-7px;}
-  .pv-sel-h:nth-child(3){bottom:-7px;left:-7px;} .pv-sel-h:nth-child(4){bottom:-7px;right:-7px;}
+  .pv-sel-h,.pv-sel-p{position:absolute;background:#fff;border:2px solid var(--vio);box-shadow:0 2px 6px rgba(16,19,11,.18);box-sizing:border-box;}
+  .pv-sel-h{width:13px;height:13px;border-radius:50%;}
+  .pv-sel-p{border-radius:999px;}
+  .pv-mot .pv-sel-cadre{z-index:0;}
 
   /* « Le plus choisi » : un curseur qui désigne la carte. */
   /* Posé dans la sélection et non dans la carte, au-dessus du cadre : rangé
@@ -271,7 +295,8 @@ const CSS = `
   /* Trois cartes côte à côte ne tiennent plus : une colonne, comme la landing. */
   @media(max-width:760px){
     .pv-h1{font-size:clamp(38px,11vw,50px);}
-    .pv-mot{--o:6px;}
+    .pv-mot .pv-sel-cadre{inset:-7px;}
+    .pv-sel-rot{bottom:-40px;}
     .pv-grille{grid-template-columns:1fr;max-width:420px;gap:30px;margin-top:44px;}
     .pv-col.is-pop{transform:none;}
     .pv-sel-cadre{inset:-7px;}
@@ -336,8 +361,11 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   /** Le dernier mot du titre, sélectionné, avec le curseur « Vous » dessus. */
   const motChoisi = (texte: string) => (
     <span className="pv-mot">
-      {texte}
-      <i /><i /><i /><i />
+      <span className="pv-mot-carte">{texte}</span>
+      <Poignees />
+      <span className="pv-sel-rot" aria-hidden="true">
+        <span><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.9-6.2M20 3v4h-4" /></svg></span>
+      </span>
       <span className="pv-curseur is-vert" aria-hidden="true">
         <Fleche className="pv-fleche" />
         <span className="pv-etiquette">Vous</span>
@@ -424,10 +452,7 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
                       <span className="pv-flag-txt">{tp("popular")}</span>
                       <Fleche className="pv-fleche" />
                     </span>
-                    <span className="pv-sel-cadre" aria-hidden="true">
-                      <span className="pv-sel-h" /><span className="pv-sel-h" />
-                      <span className="pv-sel-h" /><span className="pv-sel-h" />
-                    </span>
+                    <Poignees />
                   </div>
                 ) : carte}
               </div>

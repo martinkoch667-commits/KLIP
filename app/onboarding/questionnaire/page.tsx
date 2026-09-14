@@ -40,7 +40,9 @@ const TITRES: { titre: React.ReactNode; sub: string }[] = [
   { titre: <>Vous parlez <MotChoisi>comment</MotChoisi> ?</>, sub: "C'est le ton de vos descriptions." },
   { titre: <>Votre <MotChoisi>nom</MotChoisi></>, sub: "Il signera vos visuels." },
   { titre: <>En deux <MotChoisi>mots</MotChoisi></>, sub: "Ce que vous faites, sans soigner le style." },
-  { titre: <>Vous nous avez <MotChoisi>connus</MotChoisi> comment ?</>, sub: "Pour savoir ce qui marche de notre côté." },
+  /* Le mot sélectionné FINIT le titre : son bouton de rotation pend sous le
+     mot, et posé au milieu il tomberait sur la ligne suivante. */
+  { titre: <>Vous nous avez connus <MotChoisi>comment</MotChoisi> ?</>, sub: "Pour savoir ce qui marche de notre côté." },
 ];
 
 export default function QuestionnairePage() {
@@ -98,8 +100,7 @@ export default function QuestionnairePage() {
   );
 
   return (
-    <OnboardingShell bas={zoneBasse}
-      etape={{ chemin: "questions", libelle: `Question ${i + 1} sur ${TITRES.length}`, progression: 0.5 + 0.25 * (i + 1) / TITRES.length }}>
+    <OnboardingShell bas={zoneBasse} chemin="questions">
       <h1 className="ob-h1">{TITRES[i].titre}</h1>
       <p className="ob-sub">{TITRES[i].sub}</p>
 

@@ -135,16 +135,12 @@ const CSS = `
   /* Cadre rectangulaire et poignées sur ses coins, pas un outline qui suivrait
      l'arrondi de la carte. */
   .ch-carte:hover::before{content:"";position:absolute;inset:-6px;border:2px solid var(--vio);border-radius:4px;pointer-events:none;}
-  .ch-carte:hover::after{content:"";position:absolute;inset:-10.5px;pointer-events:none;
+  .ch-carte:hover::after{content:"";position:absolute;inset:-12px;pointer-events:none;
     background:
-      linear-gradient(#fff,#fff) 2px 2px/7px 7px no-repeat,
-      linear-gradient(#fff,#fff) calc(100% - 2px) 2px/7px 7px no-repeat,
-      linear-gradient(#fff,#fff) 2px calc(100% - 2px)/7px 7px no-repeat,
-      linear-gradient(#fff,#fff) calc(100% - 2px) calc(100% - 2px)/7px 7px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 0 0/11px 11px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 100% 0/11px 11px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 0 100%/11px 11px no-repeat,
-      linear-gradient(var(--vio),var(--vio)) 100% 100%/11px 11px no-repeat;}
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 0 0/14px 14px no-repeat,
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 100% 0/14px 14px no-repeat,
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 0 100%/14px 14px no-repeat,
+      radial-gradient(circle,#fff 0 4.5px,#6656D9 4.6px 6.5px,transparent 6.6px) 100% 100%/14px 14px no-repeat;}
   .ch-carte:hover .ch-crayon{opacity:1;}
   .ch-crayon{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:8px;
     background:var(--vio);color:#fff;display:grid;place-items:center;opacity:0;transition:opacity .15s;
@@ -278,7 +274,7 @@ export default function CharePage() {
   const langue = LANGUES.find(l => l.code === ch.langue) ?? LANGUES[0];
 
   return (
-    <OnboardingShell largeur={620} etape={{ chemin: "charte", libelle: "Étape 4 sur 4", progression: 1 }} bas={
+    <OnboardingShell largeur={620} chemin="charte" bas={
       <button className="ob-btn ob-btn-leaf" onClick={() => router.push("/onboarding/offre")}>
         Générer mes visuels
       </button>

@@ -127,7 +127,7 @@ export default function SitePage() {
   );
 
   return (
-    <OnboardingShell largeur={520} etape={{ chemin: "votre-site", libelle: "Étape 2 sur 4", progression: 0.5 }}
+    <OnboardingShell largeur={520} chemin="votre-site"
       bas={phase === "ask" ? zoneBasse : null}>
       {phase === "ask" ? (
         <>

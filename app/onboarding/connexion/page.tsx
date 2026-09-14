@@ -59,7 +59,7 @@ export default function ConnexionPage() {
   }
 
   return (
-    <OnboardingShell etape={{ chemin: "connexion", libelle: "Étape 1 sur 4", progression: 0.25 }} bas={
+    <OnboardingShell chemin="connexion" bas={
       <>
         <button type="button" className="ob-btn ob-btn-ig" onClick={relier}>
           <IcInstagram /> Continuer avec Instagram
