@@ -198,6 +198,7 @@ const CSS = `
   /* 72 px sous l'en-tête : place pour le curseur « Vous » et pour l'étiquette
      de la carte Studio, qui remonte. */
   .pv-grille{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:72px;align-items:stretch;}
+  .pv-grille.is-deux{grid-template-columns:repeat(2,minmax(0,1fr));max-width:680px;}
   .pv-col{position:relative;display:flex;min-width:0;}
   .pv-col.is-pop{transform:translateY(-14px);}
   /* Lueur verte floue sous la carte mise en avant, comme au bas des fenêtres de
@@ -316,7 +317,7 @@ const CSS = `
     .pv-h1{font-size:clamp(38px,11vw,50px);}
     .pv-mot .pv-sel-cadre{inset:-7px;}
     .pv-sel-rot{bottom:-40px;}
-    .pv-grille{grid-template-columns:1fr;max-width:420px;gap:30px;margin-top:44px;}
+    .pv-grille,.pv-grille.is-deux{grid-template-columns:1fr;max-width:420px;gap:30px;margin-top:44px;}
     .pv-col.is-pop{transform:none;}
     .pv-sel-cadre{inset:-7px;}
     .pv-carte{padding:28px 24px 24px;}
@@ -332,7 +333,11 @@ type Offre = {
   tag: string; clients: string; pop: boolean;
 };
 
-export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
+export default function OffreView({ seatsLeft, offresPayables }: {
+  seatsLeft: number | null;
+  /** Les offres dont les prix Stripe existent : les autres sont masquées. */
+  offresPayables: Offre["cle"][];
+}) {
   const tp = useTranslations("landing.pricing");
   const locale = useLocale();
   const fmt = (v: number) => formatPrice(v, locale);
@@ -415,7 +420,7 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     { cle: "starter", nom: PLANS.starter.label, mensuel: PLANS.starter.priceMonthly, annuel: PLANS.starter.priceYearly, tag: tp("starterTag"), clients: tp("starterClients"), pop: false },
     { cle: "studio", nom: PLANS.solo.label, mensuel: PLANS.solo.priceMonthly, annuel: PLANS.solo.priceYearly, tag: tp("studioTag"), clients: tp("studioClients"), pop: true },
     { cle: "agence", nom: PLANS.agency.label, mensuel: PLANS.agency.priceMonthly, annuel: PLANS.agency.priceYearly, tag: tp("agencyTag"), clients: tp("agencyClients"), pop: false },
-  ];
+  ].filter(o => offresPayables.includes(o.cle));
 
   /* Mêmes phrases que sous les prix de la landing. L'annuel se règle en une
      fois : on annonce la somme réellement débitée, puis le tarif ensuite. */
@@ -498,7 +503,7 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
           </div>
         </div>
 
-        <div className="pv-grille">
+        <div className={"pv-grille" + (offres.length === 2 ? " is-deux" : "")}>
           {offres.map(o => {
             const affiche = annuel ? o.annuel : o.mensuel;
             const carte = (
