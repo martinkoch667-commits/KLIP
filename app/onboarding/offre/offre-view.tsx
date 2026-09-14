@@ -434,10 +434,12 @@ export default function OffreView({ seatsLeft, offresPayables }: {
     return annuel ? tp("billedYear", { total: fmt(o.annuel * 12) }) : tp("billedMonth");
   }
 
-  /* Le prix Studio TEL QUE LA CARTE L'AFFICHE, période et remise comprises :
-     c'est lui qu'on oppose à la pile d'outils. */
-  const studioAffiche = annuel ? PLANS.solo.priceYearly : PLANS.solo.priceMonthly;
-  const prixStudio = lancement ? launchPrice(studioAffiche) : studioAffiche;
+  /* « À partir de » : le prix le plus bas DE LA GRILLE affichée (Starter tant
+     qu'il est payable), période et remise comprises. La carte annonçait Studio
+     (22,75 €) pendant que la landing annonce 8,74 € : Martin a relevé l'écart. */
+  const moinsChere = offres.reduce((m, o) => (annuel ? o.annuel : o.mensuel) < (annuel ? m.annuel : m.mensuel) ? o : m, offres[0]);
+  const affichePlancher = annuel ? moinsChere.annuel : moinsChere.mensuel;
+  const prixStudio = lancement ? launchPrice(affichePlancher) : affichePlancher;
 
   /** Le dernier mot du titre, sélectionné, avec le curseur « Vous » dessus. */
   const motChoisi = (texte: string) => (

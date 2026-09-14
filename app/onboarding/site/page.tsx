@@ -66,25 +66,27 @@ export default function SitePage() {
     // referme qu'à l'arrivée de la réponse.
     const ticker = setInterval(() => setEtape(i => Math.min(i + 1, ETAPES.length - 2)), 900);
 
-    let draft: OnbDraft = { source: "site", url, prefilled: [] };
+    let draft: OnbDraft | null = null;
+    let echec = "On n'a pas pu lire ce site. Vérifiez l'adresse, ou continuez sans site.";
     try {
       /* Deux routes, dans cet ordre. `analyze` lit AUSSI le secteur et le ton
          avec un modèle, mais exige une session ; `lire-site` ne fait que
-         l'extraction (couleurs, polices, logo, nom), ne coûte rien et marche
-         sans compte. Sans ce second essai, quelqu'un qui n'a pas encore de
-         compte tapait son adresse et recevait des valeurs d'exemple. */
+         l'extraction (couleurs, polices, logo, nom) et marche sans compte.
+         Un 422 d'`analyze` veut dire « site introuvable » : inutile de relire. */
       let res = await fetch("/api/brand/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      if (!res.ok) {
+      if (!res.ok && res.status !== 422) {
         res = await fetch("/api/brand/lire-site", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url }),
         });
       }
+      if (res.status === 422) echec = `On ne trouve pas « ${url} ». Vérifiez l'adresse, ou continuez sans site.`;
+      if (res.status === 429) echec = "Trop de lectures d'affilée. Réessayez dans une minute.";
       if (res.ok) {
         const d = await res.json();
         /* Le modèle écrit un secteur et un ton libres (« Restauration rapide »,
@@ -92,7 +94,7 @@ export default function SitePage() {
            questionnaire, sinon rien n'y était coché. Voir lib/marqueChoix. */
         const secteur = rangerSecteur(d.sector);
         const ton = rangerTon(d.tone);
-        const nom = nettoyerNom(d.name) || undefined;
+        const nom = nettoyerNom(d.name) || nomDepuisUrl(url) || undefined;
         /* Même lecture des couleurs que « Nouveau client » : logos d'abord,
            puis CSS, puis image de partage, puis Instagram s'il est relié. Le
            CSS seul rendait les couleurs par défaut du thème du site. */
@@ -106,20 +108,25 @@ export default function SitePage() {
           tone: ton || undefined, description: d.description,
           colors: couleurs, fonts: d.fonts, logoUrl: d.logoUrl, headline: d.description,
           prefilled: [
-            nom && "name", secteur.secteur && "sector", ton && "tone", d.description && "description",
+            nettoyerNom(d.name) && "name", secteur.secteur && "sector", ton && "tone", d.description && "description",
             couleurs.length > 0 && "colors", (d.fonts ?? []).length > 0 && "fonts", d.logoUrl && "logo",
           ].filter((k): k is string => typeof k === "string" && k.length > 0),
         };
-      } else {
-        // Les deux lectures ont échoué (site injoignable, hors ligne) : on
-        // continue avec des valeurs d'exemple, annoncées à l'écran suivant.
-        draft = exempleDepuis(url);
       }
     } catch {
-      draft = exempleDepuis(url);
+      echec = "La lecture n'a pas abouti (connexion ?). Réessayez, ou continuez sans site.";
     }
 
     clearInterval(ticker);
+    /* Site introuvable : ON LE DIT. Avant, des valeurs d'exemple (« Le goût du
+       fait maison », Restaurant, les couleurs de Klip) prenaient la place et
+       la charte les présentait comme lues sur le site : Martin a tapé
+       « pepechiken.fr » (sans c) et a cru que l'analyse était cassée. */
+    if (!draft) {
+      setPhase("ask");
+      setErreur(echec);
+      return;
+    }
     setEtape(ETAPES.length);
     const apres = suite();
     const avant = lireDraft();
@@ -214,20 +221,4 @@ export default function SitePage() {
       )}
     </OnboardingShell>
   );
-}
-
-/** Valeurs d'exemple quand l'analyse réelle n'a pas pu tourner. */
-function exempleDepuis(url: string): OnbDraft {
-  return {
-    source: "site", url,
-    name: nomDepuisUrl(url) || "Votre marque",
-    sector: "Restaurant",
-    tone: "Punchy",
-    description: "Cuisine généreuse et sans chichi, préparée sur place tous les jours.",
-    colors: ["#0C2A1D", "#103A28", "#BDF2A0", "#14160F"],
-    fonts: ["Archivo", "Hanken Grotesk"],
-    headline: "Le goût du fait maison, servi vite et bien.",
-    prefilled: ["name", "sector", "tone", "description", "colors", "fonts"],
-    demo: true,
-  };
 }

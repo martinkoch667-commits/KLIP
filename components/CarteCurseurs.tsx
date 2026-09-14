@@ -103,7 +103,7 @@ function Fenetre({ children }: { children: React.ReactNode }) {
 type Props = { prix: number; fmt: (v: number) => string };
 
 function Phrase({ prix, fmt }: Props) {
-  return <p className="fx-p">Pour <b>{fmt(prix)} €/mois</b> au lieu de ~{TOTAL} €.</p>;
+  return <p className="fx-p">À partir de <b>{fmt(prix)} €/mois</b> au lieu de ~{TOTAL} €.</p>;
 }
 
 /** Le haut de la carte : halo, fenêtre, logos, document sélectionné et
