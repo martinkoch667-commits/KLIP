@@ -145,12 +145,13 @@ const CSS = `
   .cs-bouton.is-ouvert input{flex:1;opacity:1;transition:opacity .3s .2s;}
   .v3 .cs-bouton.is-ouvert .cs-go{width:auto;height:48px;padding:0 20px;font-size:15.5px;}
   /* Le curseur « Vous » des cartes du parcours, posé sous le bouton. */
-  .cs-vous{position:absolute;right:-44px;bottom:-34px;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;
+  /* À GAUCHE du bouton : à droite, il tombait sur « Voir KLIP en action ». */
+  .cs-vous{position:absolute;left:-38px;bottom:-30px;display:flex;flex-direction:column;align-items:flex-end;pointer-events:none;
     animation:cs-flotte 3.2s ease-in-out infinite alternate;}
-  .cs-vous svg{width:20px;height:20px;fill:var(--cs-accent);stroke:#fff;stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));}
-  .cs-vous span{margin:1px 0 0 13px;padding:3px 10px;border-radius:9px;background:var(--cs-tag);color:var(--cs-tag-texte);
+  .cs-vous svg{width:20px;height:20px;transform:scaleX(-1);fill:var(--cs-accent);stroke:#fff;stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));}
+  .cs-vous span{margin:1px 13px 0 0;padding:3px 10px;border-radius:9px;background:var(--cs-tag);color:var(--cs-tag-texte);
     font-family:var(--sans);font-size:13px;font-weight:750;white-space:nowrap;box-shadow:0 8px 16px -8px rgba(0,0,0,.5);}
-  @keyframes cs-flotte{from{translate:0 0;}to{translate:-5px -4px;}}
+  @keyframes cs-flotte{from{translate:0 0;}to{translate:5px -4px;}}
   @media (prefers-reduced-motion: reduce){ .cs-vous{animation:none;} }
 
   /* ── Sélecteur de propositions (hors getklip.fr), rendu hors de .v3 ── */
@@ -180,7 +181,9 @@ const CSS = `
     .cs-bouton.is-ouvert{width:100%;padding-left:16px;}
     .cs-aide{white-space:normal;}
     .cs-choix{left:12px;right:12px;bottom:12px;justify-content:center;border-radius:20px;}
-    .cs-vous{right:14px;bottom:-30px;}
+    .cs-vous{left:auto;right:18px;bottom:-30px;}
+    /* Empilé sur mobile : de la place sous le bouton pour son curseur. */
+    .cs-bouton:not(.is-ouvert){margin-bottom:26px;}
     .cs-choix span{display:none;}
     .cs-choix button{padding:0 10px;font-size:12.5px;}
   }
@@ -222,7 +225,7 @@ export default function CtaSiteHero() {
   }
   const teinte = couleur === 'violet' ? ' is-violet' : '';
 
-  function valider(e: React.FormEvent) {
+  function valider(e: { preventDefault(): void }) {
     e.preventDefault();
     if (variante === 'curseur' && !ouvert) {
       setOuvert(true);
@@ -242,6 +245,9 @@ export default function CtaSiteHero() {
     ref: champ,
     value: site,
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => { setSite(e.target.value); setAide(false); },
+    /* Entrée validée à la main, comme sur l'écran du site : l'envoi implicite
+       du formulaire ne part pas avec tous les claviers. */
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') valider(e); },
     type: 'text' as const,
     inputMode: 'url' as const,
     autoComplete: 'url',
