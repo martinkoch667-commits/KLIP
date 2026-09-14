@@ -123,9 +123,9 @@ const CSS = `
   .pv-lead{margin:0;color:var(--ink-2);font-size:15.5px;line-height:1.5;max-width:30ch;text-wrap:pretty;}
 
   /* Le mot sélectionné : cadre violet et poignées carrées de l'éditeur. */
-  /* margin-left : le décalage du cadre mangeait l'espace, et il collait au mot
-     d'avant. */
-  .pv-mot{--o:8px;position:relative;display:inline-block;margin-left:.14em;outline:2px solid var(--vio);outline-offset:var(--o);border-radius:2px;}
+  /* margin-left = décalage du cadre + un vrai espace : sinon le cadre mange
+     l'espace et colle au mot d'avant (« à » devant « créer »). */
+  .pv-mot{--o:8px;position:relative;display:inline-block;margin-left:calc(var(--o) + .08em);outline:2px solid var(--vio);outline-offset:var(--o);border-radius:2px;}
   .pv-mot i{position:absolute;width:11px;height:11px;background:#fff;border:2px solid var(--vio);border-radius:2px;}
   .pv-mot i:nth-of-type(1){top:calc(-1 * var(--o) - 5.5px);left:calc(-1 * var(--o) - 5.5px);}
   .pv-mot i:nth-of-type(2){top:calc(-1 * var(--o) - 5.5px);right:calc(-1 * var(--o) - 5.5px);}
@@ -258,7 +258,7 @@ const CSS = `
     /* Plus la place pour deux colonnes : le bloc s'empile, aligné à gauche
        comme les cartes en dessous. */
     .pv-tete{display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:980px;}
-    .pv-tete .pv-lead{margin:18px 0 0;font-size:16px;max-width:40ch;}
+    .pv-tete .pv-lead{margin:26px 0 0;font-size:16px;max-width:40ch;}
     .pv-periode{align-self:flex-start;margin-top:20px;}
     .pv-grille{width:100%;max-width:980px;text-align:left;}
     .pv-rassure{max-width:44ch;}
