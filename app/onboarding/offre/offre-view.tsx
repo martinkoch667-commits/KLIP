@@ -284,7 +284,9 @@ const CSS = `
     /* Plus la place pour deux colonnes : le bloc s'empile, aligné à gauche
        comme les cartes en dessous. */
     .pv-tete{display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:980px;}
-    .pv-tete .pv-lead{margin:26px 0 0;font-size:16px;max-width:40ch;}
+    /* 60 px : le bouton de rotation de « créer » pend de 40 px sous le mot, et
+       à 26 il tombait sur la première ligne du texte. */
+    .pv-tete .pv-lead{margin:60px 0 0;font-size:16px;max-width:40ch;}
     .pv-periode{align-self:flex-start;margin-top:20px;}
     .pv-grille{width:100%;max-width:980px;text-align:left;}
     .pv-rassure{max-width:44ch;}
