@@ -5,12 +5,19 @@
  * Historique (Martin, 2026-09-14). D'abord « Essayer gratuitement », puis une
  * barre « votre site web » qui lançait l'analyse. Les gens demandaient
  * pourquoi il fallait un site pour essayer : on commence donc par l'adresse
- * e-mail, et le site n'est demandé qu'une fois le compte ouvert, dans le
- * parcours d'essai (`/onboarding/site`).
+ * e-mail, et le parcours d'essai commence une fois le compte ouvert, par son
+ * premier écran (`/onboarding/connexion`, puis le site).
  *
  * « Commencer » ouvre la fenêtre d'inscription de la landing avec l'adresse
- * déjà remplie : il ne reste que le mot de passe, ou Google. Déjà connecté,
- * on file au parcours.
+ * déjà remplie : il ne reste que le mot de passe, ou Google.
+ *
+ * LE COMPTE D'ABORD, TOUJOURS. On ne saute la fenêtre que si la session ouverte
+ * dans ce navigateur est celle de l'adresse tapée. Avant, n'importe quelle
+ * session suffisait : Martin, connecté à son propre compte, a tapé une autre
+ * adresse et s'est retrouvé au milieu du parcours sans créer de compte.
+ *
+ * Chaque « Commencer » repart d'un brouillon vide : un site lu lors d'un essai
+ * précédent dans le même onglet faisait sauter l'étape du site.
  *
  * FORME : la « Barre » violette retenue parmi quatre formes, compacte sur
  * mobile. Le bouton n'a PAS la classe `.btn` de la landing : GSAP rend ces
@@ -22,8 +29,9 @@ import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { ouvrirCompte } from '@/components/InscriptionOverlay';
 
-/** Où reprend le parcours une fois le compte ouvert. */
-const SUITE = '/onboarding/site';
+/** Où commence le parcours une fois le compte ouvert : son premier écran. */
+const SUITE = '/onboarding/connexion';
+const BROUILLON = 'klip_onb_draft';
 
 function Fleche() {
   return (
@@ -98,9 +106,11 @@ export default function CtaEmailHero() {
       return;
     }
     setEnvoi(true);
+    try { sessionStorage.removeItem(BROUILLON); } catch { /* navigation privée */ }
     const { data } = await createClientComponentClient().auth.getSession();
     setEnvoi(false);
-    if (data.session) router.push(SUITE);
+    const memeCompte = data.session?.user.email?.toLowerCase() === adresse.toLowerCase();
+    if (memeCompte) router.push(SUITE);
     else ouvrirCompte('inscription', undefined, SUITE, adresse);
   }
 
