@@ -115,11 +115,20 @@ export function SceneCurseurs() {
     <div className="fx-tete">
       <div className="fx-halo" />
       <Fenetre>
+        {/* Les outils BARRÉS d'un trait tracé de gauche à droite : « Six
+            abonnements » laissait croire que Klip les remplace un pour un
+            (Martin, 2026-09-14). Le titre parle maintenant des clients, et le
+            trait dit qu'on se passe de cette pile. Un halo blanc sous le trait
+            le garde lisible sur les logos noirs (ChatGPT, WeTransfer). */}
         <span className="fx-pile">
           {OUTILS.map(o => <Icone key={o.nom} outil={o} rond />)}
+          <svg className="fx-rature" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+            <path className="fx-rature-halo" pathLength={100} d="M1 7.4C20 6.6 44 5.6 66 4.4S92 2.8 99 2.4" />
+            <path className="fx-rature-trait" pathLength={100} d="M1 7.4C20 6.6 44 5.6 66 4.4S92 2.8 99 2.4" />
+          </svg>
         </span>
         <span className="fx-titre-doc">
-          <span className="fx-l1">Six abonnements</span>
+          <span className="fx-l1">Tous vos clients</span>
           <Selection className="fx-l2">Un seul outil</Selection>
         </span>
         <span className="fx-lueur" />
@@ -229,11 +238,23 @@ export const CARTE_CSS = `
   .fx-pile{position:absolute;left:4cqw;top:3.4cqw;display:flex;}
   .fx-pile .fx-ic{width:8cqw;height:8cqw;}
   .fx-pile .fx-ic + .fx-ic{margin-left:-1.3cqw;}
+  /* Le trait se trace de gauche à droite (pathLength 100), puis les logos
+     s'éteignent un peu dessous. Épaisseur en cqw, non déformée par le viewBox. */
+  .fx-rature{position:absolute;left:-2.4cqw;top:2.1cqw;width:calc(100% + 4.8cqw);height:4.2cqw;overflow:visible;pointer-events:none;z-index:2;}
+  .fx-rature path{fill:none;stroke-linecap:round;vector-effect:non-scaling-stroke;stroke-dasharray:100;stroke-dashoffset:100;
+    animation:fx-trace .7s cubic-bezier(.6,.05,.3,1) .5s forwards;}
+  .fx-rature-halo{stroke:#fff;stroke-width:2.3cqw;}
+  .fx-rature-trait{stroke:#1D2019;stroke-width:1.05cqw;}
+  .fx-pile .fx-ic{animation:fx-eteint .45s ease-out 1s forwards;}
+  @keyframes fx-trace{to{stroke-dashoffset:0;}}
+  @keyframes fx-eteint{to{filter:saturate(.5);opacity:.78;}}
   .fx-titre-doc{position:absolute;left:14cqw;top:17cqw;display:flex;flex-direction:column;align-items:flex-start;gap:3cqw;
     font-family:var(--heavy);font-weight:800;font-size:7.4cqw;line-height:1;letter-spacing:-.03em;color:#23261F;
     text-shadow:0 .6cqw 1.6cqw rgba(16,19,11,.16);white-space:nowrap;}
 
   @media (prefers-reduced-motion: reduce){
     .fx-curseur{animation:none;}
+    .fx-rature path{animation:none;stroke-dashoffset:0;}
+    .fx-pile .fx-ic{animation:none;filter:saturate(.5);opacity:.78;}
   }
 `;

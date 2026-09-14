@@ -17,9 +17,9 @@
  * On l'ouvre de n'importe où avec `ouvrirCompte()`, qui émet un événement ; un
  * lien direct `getklip.fr/#inscription` ou `#connexion` l'ouvre au chargement.
  *
- * `suite` : où aller une fois le compte ouvert. Le CTA « votre site web » du
- * hero s'en sert (Martin, 2026-09-14) : on crée le compte AVANT d'analyser le
- * site, puis on revient sur l'analyse. L'adresse voyage dans le lien de
+ * `suite` : où aller une fois le compte ouvert. `email` : l'adresse déjà tapée
+ * dans la barre du hero (Martin, 2026-09-14), qui arrive pré-remplie : il ne
+ * reste que le mot de passe, ou Google. L'adresse voyage dans le lien de
  * confirmation et le retour Google (`/auth/callback?next=`), parce que le mail
  * s'ouvre souvent dans un autre onglet, sans le sessionStorage de celui-ci.
  */
@@ -35,9 +35,9 @@ export type ModeCompte = "inscription" | "connexion";
 const EVENEMENT = "klip:compte";
 
 /** Ouvre la fenêtre. `plan` : l'offre cliquée sur la grille de prix ;
- *  `suite` : le chemin où reprendre une fois connecté. */
-export function ouvrirCompte(mode: ModeCompte = "inscription", plan?: string, suite?: string) {
-  window.dispatchEvent(new CustomEvent(EVENEMENT, { detail: { mode, plan, suite } }));
+ *  `suite` : le chemin où reprendre une fois connecté ; `email` : pré-rempli. */
+export function ouvrirCompte(mode: ModeCompte = "inscription", plan?: string, suite?: string, email?: string) {
+  window.dispatchEvent(new CustomEvent(EVENEMENT, { detail: { mode, plan, suite, email } }));
 }
 
 /* Navigateurs intégrés des applis (Instagram, Facebook, Messenger, TikTok…) :
@@ -207,13 +207,14 @@ export default function InscriptionOverlay() {
   const [suite, setSuite] = useState<string | null>(null);
   const [appliIntegree, setAppliIntegree] = useState(false);
   const champEmail = useRef<HTMLInputElement>(null);
+  const champMdp = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setAppliIntegree(APPLI_INTEGREE.test(navigator.userAgent));
   }, []);
 
   useEffect(() => {
-    function ouvrir(m: ModeCompte, plan?: string, apres?: string) {
+    function ouvrir(m: ModeCompte, plan?: string, apres?: string, adresse?: string) {
       // Même mémoire que /register : l'onboarding présélectionne l'offre cliquée.
       if (plan) {
         try { localStorage.setItem("klip_plan", plan === "agence" || plan === "agency" ? "agency" : "solo"); } catch { /* navigation privée */ }
@@ -222,11 +223,12 @@ export default function InscriptionOverlay() {
       setErreur(null);
       setEnvoye(false);
       setSuite(cheminSur(apres));
+      if (adresse) setEmail(adresse);
       setOuvert(true);
     }
     const surEvenement = (e: Event) => {
-      const d = (e as CustomEvent<{ mode?: ModeCompte; plan?: string; suite?: string }>).detail ?? {};
-      ouvrir(d.mode === "connexion" ? "connexion" : "inscription", d.plan, d.suite);
+      const d = (e as CustomEvent<{ mode?: ModeCompte; plan?: string; suite?: string; email?: string }>).detail ?? {};
+      ouvrir(d.mode === "connexion" ? "connexion" : "inscription", d.plan, d.suite, d.email);
     };
     window.addEventListener(EVENEMENT, surEvenement);
     if (location.hash === "#inscription" || location.hash === "#connexion") {
@@ -244,10 +246,14 @@ export default function InscriptionOverlay() {
     document.body.style.overflow = "hidden";
     const echap = (e: KeyboardEvent) => { if (e.key === "Escape") setOuvert(false); };
     window.addEventListener("keydown", echap);
-    /* Focus sur l'e-mail au clavier et à la souris seulement : au doigt, le
-       clavier virtuel monterait tout de suite et masquerait la carte. */
+    /* Focus au clavier et à la souris seulement : au doigt, le clavier virtuel
+       monterait tout de suite et masquerait la carte. L'e-mail déjà rempli
+       (barre du hero), on passe directement au mot de passe. */
     const id = window.matchMedia("(pointer: fine)").matches
-      ? setTimeout(() => champEmail.current?.focus({ preventScroll: true }), 280)
+      ? setTimeout(() => {
+          const cible = champEmail.current?.value ? champMdp.current : champEmail.current;
+          cible?.focus({ preventScroll: true });
+        }, 280)
       : undefined;
     return () => {
       document.documentElement.style.overflow = html;
@@ -278,6 +284,21 @@ export default function InscriptionOverlay() {
         password: motDePasse,
         options: { emailRedirectTo: retour },
       });
+      /* Adresse déjà inscrite : Supabase ne le dit pas en clair (une erreur
+         sans confirmation d'e-mail, une identité vide avec). Tapée depuis la
+         barre du hero, c'est courant : on tente la connexion avec le mot de
+         passe saisi, sinon on bascule en connexion en le disant. */
+      const dejaInscrit = error?.message === "User already registered"
+        || (!error && data.user && (data.user.identities?.length ?? 0) === 0);
+      if (dejaInscrit) {
+        const essai = await supabase.auth.signInWithPassword({ email, password: motDePasse });
+        setEnvoi(false);
+        if (!essai.error) { router.push(suite ?? "/dashboard"); return; }
+        setMode("connexion");
+        setMotDePasse("");
+        setErreur("Un compte existe déjà avec cette adresse. Entrez votre mot de passe pour vous connecter.");
+        return;
+      }
       setEnvoi(false);
       if (error) { setErreur(error.message); return; }
       // Sans confirmation d'adresse exigée, la session est déjà ouverte : on
@@ -355,7 +376,7 @@ export default function InscriptionOverlay() {
                 <input id="io-email" ref={champEmail} className="io-in" type="email" required autoComplete="email"
                   value={email} onChange={e => setEmail(e.target.value)} placeholder={t("emailPlaceholder")} />
                 <label className="io-lab" htmlFor="io-mdp">{t("passwordLabel")}</label>
-                <input id="io-mdp" className="io-in" type="password" required
+                <input id="io-mdp" ref={champMdp} className="io-in" type="password" required
                   minLength={inscription ? 8 : undefined}
                   autoComplete={inscription ? "new-password" : "current-password"}
                   value={motDePasse} onChange={e => setMotDePasse(e.target.value)}
