@@ -239,7 +239,7 @@ function Barres({ prix, fmt }: Props) {
       <div className="rt-barres-piste">
         {outils.map((o, i) => (
           <span key={o.nom} className="rt-barres-seg" style={{ flex: o.cout, background: teintes[i], ["--i" as string]: i }}>
-            <IconeOutil outil={o} taille={24} />
+            <IconeOutil outil={o} taille={20} />
           </span>
         ))}
       </div>
@@ -367,7 +367,9 @@ export const REMPLACE_CSS = `
   .rt-barres-ligne.is-klip{margin-top:20px;}
   .rt-barres-lib{font-weight:700;font-size:13.5px;color:var(--ink-2);}
   .rt-barres-val{font-family:var(--heavy);font-weight:800;font-size:19px;letter-spacing:-.02em;white-space:nowrap;}
-  .rt-barres-piste{display:flex;gap:3px;height:42px;margin-top:9px;border-radius:12px;overflow:hidden;background:#F1F0E9;}
+  /* Logos à 20 px et coins à 10 px : les segments à 10 € ne font que 28 px sur
+     mobile, et à 24 px le logo du dernier était rogné par l'arrondi de la barre. */
+  .rt-barres-piste{display:flex;gap:3px;height:42px;margin-top:9px;border-radius:10px;overflow:hidden;background:#F1F0E9;}
   .rt-barres-seg{display:flex;align-items:center;justify-content:center;min-width:0;
     transform-origin:left center;transform:scaleX(0);transition:transform .6s cubic-bezier(.2,.9,.3,1) calc(var(--i,0) * 60ms);}
   .rt-barres.is-vu .rt-barres-seg{transform:scaleX(1);}
